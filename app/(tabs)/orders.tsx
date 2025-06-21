@@ -1,21 +1,27 @@
-import React from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback } from 'react';
 import {
-  View,
-  Text,
+  Alert,
+  RefreshControl,
   ScrollView,
   StyleSheet,
-  RefreshControl,
+  Text,
   TouchableOpacity,
-  Alert,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { useOrders } from '../../hooks/useOrders';
-import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 
 export default function OrdersScreen() {
   const { orders, loading, error, loadOrders, deleteOrder } = useOrders();
+
+  useFocusEffect(
+    useCallback(() => {
+      loadOrders();
+    }, [])
+  );
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -52,7 +58,7 @@ export default function OrdersScreen() {
     }
   };
 
-  const handleOrderPress = (orderId: number) => {
+  const handleOrderPress = (orderId: string) => {
     router.push(`/orders/${orderId}` as any);
   };
 

@@ -1,64 +1,77 @@
-import { useState, useEffect } from 'react';
-import { Order } from '../types/models';
+import { useCallback, useState } from 'react';
 import { apiService } from '../services/apiService';
+import { Order } from '../types/models';
+import { useApiError } from './useApiError';
 
 export const useOrders = () => {
+  const { executeWithErrorHandling } = useApiError();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     setLoading(true);
     setError(null);
-    try {
-      const data = await apiService.getOrders();
-      setOrders(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar pedidos');
-    } finally {
-      setLoading(false);
+    
+    const result = await executeWithErrorHandling(
+      () => apiService.getOrders(),
+      'Erro ao carregar pedidos'
+    );
+
+    if (result) {
+      setOrders(result);
     }
-  };
+    
+    setLoading(false);
+  }, []);
 
   const getOrderById = async (id: string): Promise<Order | null> => {
-    try {
-      return await apiService.getOrderById(id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar pedido');
-      return null;
-    }
+    const result = await executeWithErrorHandling(
+      () => apiService.getOrderById(id),
+      'Erro ao carregar pedido'
+    );
+
+    return result || null;
   };
 
   const saveOrder = async (order: Order): Promise<boolean> => {
-    try {
-      const savedOrder = await apiService.saveOrder(order);
+    const result = await executeWithErrorHandling(
+      () => apiService.saveOrder(order),
+      'Erro ao salvar pedido'
+    );
+
+    if (result) {
       if (order.id) {
         // Update existing order
-        setOrders(prev => prev.map(o => o.id === order.id ? savedOrder : o));
+        setOrders(prev => prev.map(o => o.id === order.id ? result : o));
       } else {
         // Add new order
-        setOrders(prev => [...prev, savedOrder]);
+        setOrders(prev => [...prev, result]);
       }
       return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao salvar pedido');
-      return false;
     }
+    
+    return false;
   };
 
   const deleteOrder = async (order: Order): Promise<boolean> => {
-    try {
-      await apiService.deleteOrder(order);
+    const result = await executeWithErrorHandling(
+      () => apiService.deleteOrder(order),
+      'Erro ao excluir pedido'
+    );
+
+    if (result !== null) {
+      // Remove o pedido da lista local imediatamente
       setOrders(prev => prev.filter(o => o.id !== order.id));
       return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao excluir pedido');
-      return false;
     }
+    
+    return false;
   };
 
-  useEffect(() => {
-    loadOrders();
+  // Função para remover um pedido da lista local (para uso direto nas telas)
+  const removeOrderFromList = useCallback((orderId: string) => {
+    setOrders(prev => prev.filter(o => o.id !== orderId));
   }, []);
 
   return {
@@ -69,5 +82,6 @@ export const useOrders = () => {
     getOrderById,
     saveOrder,
     deleteOrder,
+    removeOrderFromList,
   };
 }; 

@@ -1,38 +1,68 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
+import { useApiError } from '../../hooks/useApiError';
 import { apiService } from '../../services/apiService';
-import { Product } from '../../types/models';
+import { Enterprise, Product } from '../../types/models';
 
 export default function NewProductScreen() {
+  const { executeWithErrorHandling } = useApiError();
   const [loading, setLoading] = useState(false);
+  const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
+  const [selectedEnterprise, setSelectedEnterprise] = useState<Enterprise | null>(null);
+  const [showEnterpriseModal, setShowEnterpriseModal] = useState(false);
   const [formData, setFormData] = useState<Partial<Product>>({
     name: '',
     description: '',
     price: 0,
     stock: 0,
-    photo: '',
-    enterpriseId: '', // Será definido conforme a empresa selecionada
+    enterpriseId: '',
   });
+
+  const loadEnterprises = async () => {
+    const result = await executeWithErrorHandling(
+      () => apiService.getEnterprises(),
+      'Erro ao carregar empresas'
+    );
+
+    if (result) {
+      setEnterprises(result);
+    }
+  };
+
+  useEffect(() => {
+    loadEnterprises();
+  }, []);
 
   const handleInputChange = (field: keyof Product, value: string | number) => {
     setFormData(prev => ({
       ...prev,
       [field]: value,
     }));
+  };
+
+  const handleSelectEnterprise = (enterprise: Enterprise) => {
+    setSelectedEnterprise(enterprise);
+    setFormData(prev => ({
+      ...prev,
+      enterpriseId: enterprise.id!,
+    }));
+    setShowEnterpriseModal(false);
   };
 
   const formatCurrency = (value: string) => {
@@ -68,8 +98,8 @@ export default function NewProductScreen() {
       Alert.alert('Erro', 'Estoque deve ser um número válido');
       return false;
     }
-    if (!formData.enterpriseId?.trim()) {
-      Alert.alert('Erro', 'Enterprise ID é obrigatório (será implementado seletor de empresa)');
+    if (!selectedEnterprise) {
+      Alert.alert('Erro', 'Selecione uma empresa');
       return false;
     }
     return true;
@@ -79,16 +109,19 @@ export default function NewProductScreen() {
     if (!validateForm()) return;
 
     setLoading(true);
-    try {
-      await apiService.saveProduct(formData as Product);
+    
+    const result = await executeWithErrorHandling(
+      () => apiService.saveProduct(formData as Product),
+      'Erro ao cadastrar produto'
+    );
+
+    if (result) {
       Alert.alert('Sucesso', 'Produto cadastrado com sucesso!', [
         { text: 'OK', onPress: () => router.back() }
       ]);
-    } catch (error) {
-      Alert.alert('Erro', 'Erro ao cadastrar produto');
-    } finally {
-      setLoading(false);
     }
+    
+    setLoading(false);
   };
 
   const handleCancel = () => {
@@ -102,13 +135,20 @@ export default function NewProductScreen() {
     }).format(price);
   };
 
+  const formatCNPJ = (cnpj: string) => {
+    const cleaned = cnpj.replace(/\D/g, '');
+    if (cleaned.length === 14) {
+      return `${cleaned.slice(0, 2)}.${cleaned.slice(2, 5)}.${cleaned.slice(5, 8)}/${cleaned.slice(8, 12)}-${cleaned.slice(12)}`;
+    }
+    return cnpj;
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={handleCancel}>
             <Ionicons name="arrow-back" size={24} color="#333" />
@@ -131,7 +171,6 @@ export default function NewProductScreen() {
               <CardTitle>Informações do Produto</CardTitle>
             </CardHeader>
             <CardContent>
-              {/* Nome */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Nome *</Text>
                 <TextInput
@@ -143,7 +182,6 @@ export default function NewProductScreen() {
                 />
               </View>
 
-              {/* Descrição */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Descrição *</Text>
                 <TextInput
@@ -157,7 +195,26 @@ export default function NewProductScreen() {
                 />
               </View>
 
-              {/* Preço */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Empresa *</Text>
+                <TouchableOpacity
+                  style={styles.enterpriseButton}
+                  onPress={() => setShowEnterpriseModal(true)}
+                >
+                  {selectedEnterprise ? (
+                    <View style={styles.selectedEnterprise}>
+                      <Text style={styles.enterpriseName}>{selectedEnterprise.tradeName}</Text>
+                      <Text style={styles.enterpriseDetail}>
+                        CNPJ: {formatCNPJ(selectedEnterprise.cnpj)}
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.placeholderText}>Selecionar empresa</Text>
+                  )}
+                  <Ionicons name="chevron-down" size={20} color="#666" />
+                </TouchableOpacity>
+              </View>
+
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Preço *</Text>
                 <TextInput
@@ -170,7 +227,6 @@ export default function NewProductScreen() {
                 />
               </View>
 
-              {/* Estoque */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Estoque *</Text>
                 <TextInput
@@ -183,30 +239,10 @@ export default function NewProductScreen() {
                 />
               </View>
 
-              {/* Enterprise ID temporário */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>ID da Empresa *</Text>
-                <TextInput
-                  style={styles.input}
-                  value={formData.enterpriseId}
-                  onChangeText={(text) => handleInputChange('enterpriseId', text)}
-                  placeholder="Digite o ID da empresa"
-                  placeholderTextColor="#999"
-                />
-              </View>
 
-              {/* Foto */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Foto do Produto</Text>
-                <TouchableOpacity style={styles.photoButton}>
-                  <Ionicons name="camera-outline" size={24} color="#666" />
-                  <Text style={styles.photoButtonText}>Adicionar Foto</Text>
-                </TouchableOpacity>
-              </View>
             </CardContent>
           </Card>
 
-          {/* Preview Card */}
           <Card style={styles.previewCard}>
             <CardHeader>
               <CardTitle>Prévia do Produto</CardTitle>
@@ -223,6 +259,9 @@ export default function NewProductScreen() {
                   <Text style={styles.previewDescription}>
                     {formData.description || 'Descrição do produto'}
                   </Text>
+                  <Text style={styles.previewEnterprise}>
+                    🏢 {selectedEnterprise?.tradeName || 'Empresa não selecionada'}
+                  </Text>
                   <Text style={styles.previewPrice}>
                     {formData.price ? formatDisplayPrice(formData.price) : 'R$ 0,00'}
                   </Text>
@@ -234,6 +273,46 @@ export default function NewProductScreen() {
             </CardContent>
           </Card>
         </ScrollView>
+
+        <Modal
+          visible={showEnterpriseModal}
+          animationType="slide"
+          presentationStyle="pageSheet"
+        >
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Selecionar Empresa</Text>
+              <TouchableOpacity onPress={() => setShowEnterpriseModal(false)}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={enterprises}
+              keyExtractor={(item) => item.id!}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.enterpriseItem}
+                  onPress={() => handleSelectEnterprise(item)}
+                >
+                  <View style={styles.enterpriseItemInfo}>
+                    <Text style={styles.enterpriseItemName}>{item.tradeName}</Text>
+                    <Text style={styles.enterpriseItemDetail}>{item.legalName}</Text>
+                    <Text style={styles.enterpriseItemCnpj}>
+                      CNPJ: {formatCNPJ(item.cnpj)}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#666" />
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <View style={styles.emptyState}>
+                  <Ionicons name="business-outline" size={48} color="#ccc" />
+                  <Text style={styles.emptyText}>Nenhuma empresa encontrada</Text>
+                </View>
+              }
+            />
+          </SafeAreaView>
+        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -313,21 +392,35 @@ const styles = StyleSheet.create({
     height: 80,
     textAlignVertical: 'top',
   },
-  photoButton: {
+  enterpriseButton: {
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
-    paddingVertical: 24,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 8,
   },
-  photoButtonText: {
+  selectedEnterprise: {
+    flex: 1,
+  },
+  enterpriseName: {
     fontSize: 16,
-    color: '#666',
+    fontWeight: '600',
+    color: '#333',
   },
+  enterpriseDetail: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 2,
+  },
+  placeholderText: {
+    fontSize: 16,
+    color: '#999',
+  },
+
   previewContent: {
     flexDirection: 'row',
     gap: 12,
@@ -352,6 +445,11 @@ const styles = StyleSheet.create({
   previewDescription: {
     fontSize: 14,
     color: '#666',
+    marginBottom: 4,
+  },
+  previewEnterprise: {
+    fontSize: 14,
+    color: '#666',
     marginBottom: 8,
   },
   previewPrice: {
@@ -363,5 +461,59 @@ const styles = StyleSheet.create({
   previewStock: {
     fontSize: 14,
     color: '#666',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  enterpriseItem: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  enterpriseItemInfo: {
+    flex: 1,
+  },
+  enterpriseItemName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  enterpriseItemDetail: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 2,
+  },
+  enterpriseItemCnpj: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 2,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 64,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#999',
+    marginTop: 8,
   },
 }); 

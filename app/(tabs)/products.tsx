@@ -1,22 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  RefreshControl,
-  TouchableOpacity,
-  Alert,
-  Image,
+    Alert,
+    Image,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { Product } from '../../types/models';
+import { Card, CardContent, CardHeader, CardSubtitle, CardTitle } from '../../components/ui/Card';
+import { useApiError } from '../../hooks/useApiError';
 import { apiService } from '../../services/apiService';
-import { Card, CardHeader, CardTitle, CardSubtitle, CardContent } from '../../components/ui/Card';
+import { Product } from '../../types/models';
 
 export default function ProductsScreen() {
+  const { executeWithErrorHandling, executeDeleteWithListUpdate } = useApiError();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,15 +26,25 @@ export default function ProductsScreen() {
   const loadProducts = async () => {
     setLoading(true);
     setError(null);
-    try {
-      const data = await apiService.getProducts();
-      setProducts(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar produtos');
-    } finally {
-      setLoading(false);
+    
+    const result = await executeWithErrorHandling(
+      () => apiService.getProducts(),
+      'Erro ao carregar produtos'
+    );
+
+    if (result) {
+      setProducts(result);
     }
+    
+    setLoading(false);
   };
+
+  // Recarrega a lista sempre que a tela ganhar foco
+  useFocusEffect(
+    useCallback(() => {
+      loadProducts();
+    }, [])
+  );
 
   const handleDeleteProduct = (product: Product) => {
     Alert.alert(
@@ -44,12 +56,16 @@ export default function ProductsScreen() {
           text: 'Excluir',
           style: 'destructive',
           onPress: async () => {
-            try {
-              await apiService.deleteProduct(product);
-              setProducts(prev => prev.filter(p => p.id !== product.id));
+            const success = await executeDeleteWithListUpdate(
+              () => apiService.deleteProduct(product),
+              product,
+              setProducts,
+              (item) => item.id!,
+              'Erro ao excluir produto'
+            );
+
+            if (success) {
               Alert.alert('Sucesso', 'Produto excluído com sucesso!');
-            } catch (err) {
-              Alert.alert('Erro', 'Erro ao excluir produto');
             }
           },
         },
@@ -57,7 +73,7 @@ export default function ProductsScreen() {
     );
   };
 
-  const handleProductPress = (productId: number) => {
+  const handleProductPress = (productId: string) => {
     router.push(`/products/${productId}` as any);
   };
 
@@ -77,14 +93,6 @@ export default function ProductsScreen() {
     if (stock <= 10) return { text: 'Estoque baixo', color: '#ffce56' };
     return { text: 'Em estoque', color: '#36a2eb' };
   };
-
-  useEffect(() => {
-    loadProducts();
-  }, []);
-
-  if (error) {
-    Alert.alert('Erro', error);
-  }
 
   return (
     <SafeAreaView style={styles.container}>

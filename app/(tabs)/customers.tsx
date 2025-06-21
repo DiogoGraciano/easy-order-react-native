@@ -1,22 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  RefreshControl,
-  TouchableOpacity,
   Alert,
   Image,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { Customer } from '../../types/models';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
+import { useApiError } from '../../hooks/useApiError';
 import { apiService } from '../../services/apiService';
-import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
+import { Customer } from '../../types/models';
 
 export default function CustomersScreen() {
+  const { executeWithErrorHandling, executeDeleteWithListUpdate } = useApiError();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,15 +26,25 @@ export default function CustomersScreen() {
   const loadCustomers = async () => {
     setLoading(true);
     setError(null);
-    try {
-      const data = await apiService.getCustomers();
-      setCustomers(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar clientes');
-    } finally {
-      setLoading(false);
+    
+    const result = await executeWithErrorHandling(
+      () => apiService.getCustomers(),
+      'Erro ao carregar clientes'
+    );
+
+    if (result) {
+      setCustomers(result);
     }
+    
+    setLoading(false);
   };
+
+  // Recarrega a lista sempre que a tela ganhar foco
+  useFocusEffect(
+    useCallback(() => {
+      loadCustomers();
+    }, [])
+  );
 
   const handleDeleteCustomer = (customer: Customer) => {
     Alert.alert(
@@ -44,12 +56,16 @@ export default function CustomersScreen() {
           text: 'Excluir',
           style: 'destructive',
           onPress: async () => {
-            try {
-              await apiService.deleteCustomer(customer);
-              setCustomers(prev => prev.filter(c => c.id !== customer.id));
+            const success = await executeDeleteWithListUpdate(
+              () => apiService.deleteCustomer(customer),
+              customer,
+              setCustomers,
+              (item) => item.id!,
+              'Erro ao excluir cliente'
+            );
+
+            if (success) {
               Alert.alert('Sucesso', 'Cliente excluído com sucesso!');
-            } catch (err) {
-              Alert.alert('Erro', 'Erro ao excluir cliente');
             }
           },
         },
@@ -57,7 +73,7 @@ export default function CustomersScreen() {
     );
   };
 
-  const handleCustomerPress = (customerId: number) => {
+  const handleCustomerPress = (customerId: string) => {
     router.push(`/customers/${customerId}` as any);
   };
 
@@ -82,14 +98,6 @@ export default function CustomersScreen() {
     }
     return cpf;
   };
-
-  useEffect(() => {
-    loadCustomers();
-  }, []);
-
-  if (error) {
-    Alert.alert('Erro', error);
-  }
 
   return (
     <SafeAreaView style={styles.container}>

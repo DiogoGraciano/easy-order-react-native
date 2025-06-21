@@ -2,22 +2,24 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
+import { useApiError } from '../../hooks/useApiError';
 import { apiService } from '../../services/apiService';
-import { Customer } from '../../types/models';
+import { Customer, validateCPF, validateEmail } from '../../types/models';
 
 export default function NewCustomerScreen() {
+  const { executeWithErrorHandling } = useApiError();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<Partial<Customer>>({
     name: '',
@@ -25,7 +27,6 @@ export default function NewCustomerScreen() {
     phone: '',
     cpf: '',
     address: '',
-    photo: '',
   });
 
   const handleInputChange = (field: keyof Customer, value: string) => {
@@ -37,11 +38,10 @@ export default function NewCustomerScreen() {
 
   const formatCPF = (text: string) => {
     const cleaned = text.replace(/\D/g, '');
-    const formatted = cleaned.replace(
-      /^(\d{3})(\d{3})(\d{3})(\d{2})$/,
-      '$1.$2.$3-$4'
-    );
-    return formatted;
+    if (cleaned.length <= 11) {
+      return cleaned.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
+    }
+    return text;
   };
 
   const handleCPFChange = (text: string) => {
@@ -55,9 +55,10 @@ export default function NewCustomerScreen() {
     const cleaned = text.replace(/\D/g, '');
     if (cleaned.length <= 10) {
       return cleaned.replace(/^(\d{2})(\d{4})(\d{4})$/, '($1) $2-$3');
-    } else {
+    } else if (cleaned.length <= 11) {
       return cleaned.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
     }
+    return text;
   };
 
   const handlePhoneChange = (text: string) => {
@@ -67,60 +68,34 @@ export default function NewCustomerScreen() {
     }
   };
 
-  const validateEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  const validateCPF = (cpf: string) => {
-    const cleaned = cpf.replace(/\D/g, '');
-    if (cleaned.length !== 11) return false;
-
-    // Verificação básica do CPF
-    if (/^(\d)\1{10}$/.test(cleaned)) return false;
-
-    let sum = 0;
-    for (let i = 0; i < 9; i++) {
-      sum += parseInt(cleaned.charAt(i)) * (10 - i);
-    }
-    let digit1 = (sum * 10) % 11;
-    if (digit1 === 10) digit1 = 0;
-
-    sum = 0;
-    for (let i = 0; i < 10; i++) {
-      sum += parseInt(cleaned.charAt(i)) * (11 - i);
-    }
-    let digit2 = (sum * 10) % 11;
-    if (digit2 === 10) digit2 = 0;
-
-    return digit1 === parseInt(cleaned.charAt(9)) && digit2 === parseInt(cleaned.charAt(10));
-  };
-
   const validateForm = (): boolean => {
     if (!formData.name?.trim()) {
       Alert.alert('Erro', 'Nome é obrigatório');
       return false;
     }
-    if (!formData.email?.trim()) {
-      Alert.alert('Erro', 'E-mail é obrigatório');
+    
+    const emailValidation = validateEmail(formData.email || '');
+    if (!emailValidation.isValid) {
+      Alert.alert('Erro', emailValidation.message);
       return false;
     }
-    if (!validateEmail(formData.email)) {
-      Alert.alert('Erro', 'E-mail inválido');
-      return false;
-    }
+    
     if (!formData.phone || formData.phone.length < 10) {
       Alert.alert('Erro', 'Telefone deve ter pelo menos 10 dígitos');
       return false;
     }
-    if (!formData.cpf || !validateCPF(formData.cpf)) {
-      Alert.alert('Erro', 'CPF inválido');
+    
+    const cpfValidation = validateCPF(formData.cpf || '');
+    if (!cpfValidation.isValid) {
+      Alert.alert('Erro', cpfValidation.message);
       return false;
     }
+    
     if (!formData.address?.trim()) {
       Alert.alert('Erro', 'Endereço é obrigatório');
       return false;
     }
+    
     return true;
   };
 
@@ -128,16 +103,19 @@ export default function NewCustomerScreen() {
     if (!validateForm()) return;
 
     setLoading(true);
-    try {
-      await apiService.saveCustomer(formData as Customer);
+    
+    const result = await executeWithErrorHandling(
+      () => apiService.saveCustomer(formData as Customer),
+      'Erro ao cadastrar cliente'
+    );
+
+    if (result) {
       Alert.alert('Sucesso', 'Cliente cadastrado com sucesso!', [
         { text: 'OK', onPress: () => router.back() }
       ]);
-    } catch (error) {
-      Alert.alert('Erro', 'Erro ao cadastrar cliente');
-    } finally {
-      setLoading(false);
     }
+    
+    setLoading(false);
   };
 
   const handleCancel = () => {
@@ -150,7 +128,6 @@ export default function NewCustomerScreen() {
         style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={handleCancel}>
             <Ionicons name="arrow-back" size={24} color="#333" />
@@ -173,7 +150,6 @@ export default function NewCustomerScreen() {
               <CardTitle>Informações do Cliente</CardTitle>
             </CardHeader>
             <CardContent>
-              {/* Nome */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Nome Completo *</Text>
                 <TextInput
@@ -185,7 +161,6 @@ export default function NewCustomerScreen() {
                 />
               </View>
 
-              {/* E-mail */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>E-mail *</Text>
                 <TextInput
@@ -199,7 +174,6 @@ export default function NewCustomerScreen() {
                 />
               </View>
 
-              {/* CPF */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>CPF *</Text>
                 <TextInput
@@ -212,7 +186,6 @@ export default function NewCustomerScreen() {
                 />
               </View>
 
-              {/* Telefone */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Telefone *</Text>
                 <TextInput
@@ -225,7 +198,6 @@ export default function NewCustomerScreen() {
                 />
               </View>
 
-              {/* Endereço */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Endereço *</Text>
                 <TextInput
@@ -239,18 +211,10 @@ export default function NewCustomerScreen() {
                 />
               </View>
 
-              {/* Foto */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Foto do Cliente</Text>
-                <TouchableOpacity style={styles.photoButton}>
-                  <Ionicons name="camera-outline" size={24} color="#666" />
-                  <Text style={styles.photoButtonText}>Adicionar Foto</Text>
-                </TouchableOpacity>
-              </View>
+
             </CardContent>
           </Card>
 
-          {/* Preview Card */}
           <Card style={styles.previewCard}>
             <CardHeader>
               <CardTitle>Prévia do Cliente</CardTitle>
@@ -360,21 +324,7 @@ const styles = StyleSheet.create({
     height: 80,
     textAlignVertical: 'top',
   },
-  photoButton: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingVertical: 24,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
-  photoButtonText: {
-    fontSize: 16,
-    color: '#666',
-  },
+
   previewContent: {
     flexDirection: 'row',
     gap: 12,

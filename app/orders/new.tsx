@@ -2,54 +2,69 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
+import { DatePicker } from '../../components/ui/DatePicker';
+import { useApiError } from '../../hooks/useApiError';
 import { apiService } from '../../services/apiService';
-import { Customer, Order, OrderItem, Product } from '../../types/models';
+import { Customer, Enterprise, Order, OrderItem, Product, formatPrice, generateOrderNumber } from '../../types/models';
 
 export default function NewOrderScreen() {
+  const { executeWithErrorHandling } = useApiError();
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedEnterprise, setSelectedEnterprise] = useState<Enterprise | null>(null);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
+  const [showEnterpriseModal, setShowEnterpriseModal] = useState(false);
   const [notes, setNotes] = useState('');
 
   const [formData, setFormData] = useState<Partial<Order>>({
+    orderNumber: generateOrderNumber(),
     orderDate: new Date().toISOString(),
-    status: 'PENDING',
+    status: 'pending',
     totalAmount: 0,
     customerId: '',
-    enterpriseId: '', // Será definido conforme a empresa selecionada
+    enterpriseId: '',
     items: [],
     notes: '',
   });
 
   const loadData = async () => {
-    try {
-      const [customersData, productsData] = await Promise.all([
-        apiService.getCustomers(),
-        apiService.getProducts(),
-      ]);
-      setCustomers(customersData);
-      setProducts(productsData);
-    } catch (error) {
-      Alert.alert('Erro', 'Erro ao carregar dados');
-    }
+    const [customersResult, productsResult, enterprisesResult] = await Promise.all([
+      executeWithErrorHandling(
+        () => apiService.getCustomers(),
+        'Erro ao carregar clientes'
+      ),
+      executeWithErrorHandling(
+        () => apiService.getProducts(),
+        'Erro ao carregar produtos'
+      ),
+      executeWithErrorHandling(
+        () => apiService.getEnterprises(),
+        'Erro ao carregar empresas'
+      )
+    ]);
+
+    if (customersResult) setCustomers(customersResult);
+    if (productsResult) setProducts(productsResult);
+    if (enterprisesResult) setEnterprises(enterprisesResult);
   };
 
   useEffect(() => {
@@ -57,7 +72,8 @@ export default function NewOrderScreen() {
   }, []);
 
   const calculateTotal = (items: OrderItem[]) => {
-    return items.reduce((total, item) => total + item.subtotal, 0);
+    const total = items.reduce((total, item) => total + item.subtotal, 0);
+    return formatPrice(total);
   };
 
   const handleSelectCustomer = (customer: Customer) => {
@@ -69,24 +85,34 @@ export default function NewOrderScreen() {
     setShowCustomerModal(false);
   };
 
+  const handleSelectEnterprise = (enterprise: Enterprise) => {
+    setSelectedEnterprise(enterprise);
+    setFormData(prev => ({
+      ...prev,
+      enterpriseId: enterprise.id!,
+    }));
+    setShowEnterpriseModal(false);
+  };
+
   const handleAddProduct = (product: Product, quantity: number = 1) => {
     const existingItemIndex = orderItems.findIndex(item => item.productId === product.id);
     
+    const unitPrice = formatPrice(product.price);
+    const subtotal = formatPrice(quantity * unitPrice);
+    
     if (existingItemIndex >= 0) {
-      // Se o produto já existe, aumenta a quantidade
       const updatedItems = [...orderItems];
       updatedItems[existingItemIndex].quantity += quantity;
       updatedItems[existingItemIndex].subtotal = 
-        updatedItems[existingItemIndex].quantity * updatedItems[existingItemIndex].unitPrice;
+        formatPrice(updatedItems[existingItemIndex].quantity * updatedItems[existingItemIndex].unitPrice);
       setOrderItems(updatedItems);
     } else {
-      // Se é um novo produto, adiciona à lista
       const newItem: OrderItem = {
         productId: product.id!,
         productName: product.name,
         quantity,
-        unitPrice: product.price,
-        subtotal: quantity * product.price,
+        unitPrice,
+        subtotal,
       };
       setOrderItems([...orderItems, newItem]);
     }
@@ -102,7 +128,7 @@ export default function NewOrderScreen() {
     
     const updatedItems = [...orderItems];
     updatedItems[index].quantity = quantity;
-    updatedItems[index].subtotal = quantity * updatedItems[index].unitPrice;
+    updatedItems[index].subtotal = formatPrice(quantity * updatedItems[index].unitPrice);
     setOrderItems(updatedItems);
   };
 
@@ -111,17 +137,31 @@ export default function NewOrderScreen() {
     setOrderItems(updatedItems);
   };
 
+  const handleStatusChange = (status: 'pending' | 'completed' | 'cancelled') => {
+    setFormData(prev => ({
+      ...prev,
+      status,
+    }));
+  };
+
+  const handleDateChange = (date: Date) => {
+    setFormData(prev => ({
+      ...prev,
+      orderDate: date.toISOString(),
+    }));
+  };
+
   const validateForm = (): boolean => {
     if (!selectedCustomer) {
       Alert.alert('Erro', 'Selecione um cliente');
       return false;
     }
-    if (orderItems.length === 0) {
-      Alert.alert('Erro', 'Adicione pelo menos um produto ao pedido');
+    if (!selectedEnterprise) {
+      Alert.alert('Erro', 'Selecione uma empresa');
       return false;
     }
-    if (!formData.enterpriseId?.trim()) {
-      Alert.alert('Erro', 'Enterprise ID é obrigatório (será implementado seletor de empresa)');
+    if (orderItems.length === 0) {
+      Alert.alert('Erro', 'Adicione pelo menos um produto ao pedido');
       return false;
     }
     return true;
@@ -131,24 +171,40 @@ export default function NewOrderScreen() {
     if (!validateForm()) return;
 
     const totalAmount = calculateTotal(orderItems);
+    
+    const cleanItems = orderItems.map(item => ({
+      productId: item.productId,
+      productName: item.productName,
+      quantity: item.quantity,
+      unitPrice: formatPrice(item.unitPrice),
+      subtotal: formatPrice(item.subtotal),
+    }));
+    
     const orderData: Order = {
-      ...formData,
-      totalAmount,
-      items: orderItems,
+      orderNumber: formData.orderNumber,
+      orderDate: formData.orderDate,
+      status: formData.status,
+      totalAmount: formatPrice(totalAmount),
+      customerId: formData.customerId,
+      enterpriseId: formData.enterpriseId,
+      items: cleanItems,
       notes,
     } as Order;
 
     setLoading(true);
-    try {
-      await apiService.saveOrder(orderData);
+    
+    const result = await executeWithErrorHandling(
+      () => apiService.saveOrder(orderData),
+      'Erro ao cadastrar pedido'
+    );
+
+    if (result) {
       Alert.alert('Sucesso', 'Pedido cadastrado com sucesso!', [
         { text: 'OK', onPress: () => router.back() }
       ]);
-    } catch (error) {
-      Alert.alert('Erro', 'Erro ao cadastrar pedido');
-    } finally {
-      setLoading(false);
     }
+    
+    setLoading(false);
   };
 
   const handleCancel = () => {
@@ -166,13 +222,40 @@ export default function NewOrderScreen() {
     return date.toLocaleDateString('pt-BR');
   };
 
+  const formatCNPJ = (cnpj: string) => {
+    const cleaned = cnpj.replace(/\D/g, '');
+    if (cleaned.length === 14) {
+      return `${cleaned.slice(0, 2)}.${cleaned.slice(2, 5)}.${cleaned.slice(5, 8)}/${cleaned.slice(8, 12)}-${cleaned.slice(12)}`;
+    }
+    return cnpj;
+  };
+
+  const getStatusColor = (status: string): string => {
+    switch (status) {
+      case 'pending': return '#ffce56';
+      case 'completed': return '#36a2eb';
+      case 'cancelled': return '#ff6384';
+      default: return '#666';
+    }
+  };
+
+  const getStatusText = (status: string): string => {
+    switch (status) {
+      case 'pending': return 'Pendente';
+      case 'completed': return 'Confirmado';
+      case 'cancelled': return 'Cancelado';
+      default: return status;
+    }
+  };
+
+  const statusOptions = ['pending', 'completed', 'cancelled'];
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={handleCancel}>
             <Ionicons name="arrow-back" size={24} color="#333" />
@@ -190,24 +273,20 @@ export default function NewOrderScreen() {
         </View>
 
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-          {/* Informações do Pedido */}
           <Card style={styles.formCard}>
             <CardHeader>
               <CardTitle>Informações do Pedido</CardTitle>
             </CardHeader>
             <CardContent>
-              {/* Data do Pedido */}
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Data do Pedido</Text>
-                <View style={styles.dateDisplay}>
-                  <Text style={styles.dateText}>
-                    {formatDate(new Date(formData.orderDate as string))}
-                  </Text>
-                  <Ionicons name="calendar-outline" size={20} color="#666" />
-                </View>
+                <DatePicker
+                  value={formData.orderDate ? new Date(formData.orderDate) : new Date()}
+                  onChange={handleDateChange}
+                  label="Data do Pedido"
+                  placeholder="Selecionar data do pedido"
+                />
               </View>
 
-              {/* Cliente */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Cliente *</Text>
                 <TouchableOpacity
@@ -226,19 +305,50 @@ export default function NewOrderScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* Enterprise ID temporário */}
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>ID da Empresa *</Text>
-                <TextInput
-                  style={styles.input}
-                  value={formData.enterpriseId}
-                  onChangeText={(text) => setFormData(prev => ({ ...prev, enterpriseId: text }))}
-                  placeholder="Digite o ID da empresa"
-                  placeholderTextColor="#999"
-                />
+                <Text style={styles.label}>Empresa *</Text>
+                <TouchableOpacity
+                  style={styles.enterpriseButton}
+                  onPress={() => setShowEnterpriseModal(true)}
+                >
+                  {selectedEnterprise ? (
+                    <View style={styles.selectedEnterprise}>
+                      <Text style={styles.enterpriseName}>{selectedEnterprise.tradeName}</Text>
+                      <Text style={styles.enterpriseDetail}>
+                        CNPJ: {formatCNPJ(selectedEnterprise.cnpj)}
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.placeholderText}>Selecionar empresa</Text>
+                  )}
+                  <Ionicons name="chevron-down" size={20} color="#666" />
+                </TouchableOpacity>
               </View>
 
-              {/* Observações */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Status</Text>
+                <View style={styles.statusContainer}>
+                  {statusOptions.map((status) => (
+                    <TouchableOpacity
+                      key={status}
+                      style={[
+                        styles.statusOption,
+                        formData.status === status && styles.statusOptionSelected,
+                        { backgroundColor: formData.status === status ? getStatusColor(status) : '#f0f0f0' }
+                      ]}
+                      onPress={() => handleStatusChange(status as 'pending' | 'completed' | 'cancelled')}
+                    >
+                      <Text style={[
+                        styles.statusOptionText,
+                        formData.status === status && styles.statusOptionTextSelected
+                      ]}>
+                        {getStatusText(status)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Observações</Text>
                 <TextInput
@@ -254,7 +364,6 @@ export default function NewOrderScreen() {
             </CardContent>
           </Card>
 
-          {/* Itens do Pedido */}
           <Card style={styles.formCard}>
             <CardHeader>
               <View style={styles.cardHeaderWithButton}>
@@ -315,7 +424,6 @@ export default function NewOrderScreen() {
             </CardContent>
           </Card>
 
-          {/* Total do Pedido */}
           {orderItems.length > 0 && (
             <Card style={styles.totalCard}>
               <CardContent>
@@ -330,7 +438,6 @@ export default function NewOrderScreen() {
           )}
         </ScrollView>
 
-        {/* Modal de Seleção de Cliente */}
         <Modal
           visible={showCustomerModal}
           animationType="slide"
@@ -359,7 +466,46 @@ export default function NewOrderScreen() {
           </SafeAreaView>
         </Modal>
 
-        {/* Modal de Seleção de Produto */}
+        <Modal
+          visible={showEnterpriseModal}
+          animationType="slide"
+          presentationStyle="pageSheet"
+        >
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Selecionar Empresa</Text>
+              <TouchableOpacity onPress={() => setShowEnterpriseModal(false)}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={enterprises}
+              keyExtractor={(item) => item.id!}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.enterpriseItem}
+                  onPress={() => handleSelectEnterprise(item)}
+                >
+                  <View style={styles.enterpriseItemInfo}>
+                    <Text style={styles.enterpriseItemName}>{item.tradeName}</Text>
+                    <Text style={styles.enterpriseItemDetail}>{item.legalName}</Text>
+                    <Text style={styles.enterpriseItemCnpj}>
+                      CNPJ: {formatCNPJ(item.cnpj)}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#666" />
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <View style={styles.emptyState}>
+                  <Ionicons name="business-outline" size={48} color="#ccc" />
+                  <Text style={styles.emptyText}>Nenhuma empresa encontrada</Text>
+                </View>
+              }
+            />
+          </SafeAreaView>
+        </Modal>
+
         <Modal
           visible={showProductModal}
           animationType="slide"
@@ -445,7 +591,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   totalCard: {
-    marginBottom: 20,
+    marginBottom: 50,
     backgroundColor: '#f8f9fa',
   },
   inputGroup: {
@@ -470,21 +616,6 @@ const styles = StyleSheet.create({
   textArea: {
     height: 80,
     textAlignVertical: 'top',
-  },
-  dateDisplay: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  dateText: {
-    fontSize: 16,
-    color: '#333',
   },
   customerButton: {
     backgroundColor: '#fff',
@@ -643,6 +774,55 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 2,
   },
+  enterpriseButton: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  selectedEnterprise: {
+    flex: 1,
+  },
+  enterpriseName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  enterpriseDetail: {
+    fontSize: 14,
+    color: '#666',
+  },
+  enterpriseItem: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  enterpriseItemInfo: {
+    flex: 1,
+  },
+  enterpriseItemName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  enterpriseItemDetail: {
+    fontSize: 14,
+    color: '#666',
+  },
+  enterpriseItemCnpj: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
   productItem: {
     paddingHorizontal: 20,
     paddingVertical: 16,
@@ -674,5 +854,27 @@ const styles = StyleSheet.create({
   productStock: {
     fontSize: 12,
     color: '#999',
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  statusOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: '#f0f0f0',
+  },
+  statusOptionSelected: {
+    backgroundColor: '#007AFF',
+  },
+  statusOptionText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666',
+  },
+  statusOptionTextSelected: {
+    color: '#fff',
   },
 });

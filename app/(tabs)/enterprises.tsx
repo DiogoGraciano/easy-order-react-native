@@ -1,22 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  RefreshControl,
-  TouchableOpacity,
   Alert,
   Image,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { Enterprise } from '../../types/models';
+import { Card, CardContent, CardHeader, CardSubtitle, CardTitle } from '../../components/ui/Card';
+import { useApiError } from '../../hooks/useApiError';
 import { apiService } from '../../services/apiService';
-import { Card, CardHeader, CardTitle, CardSubtitle, CardContent } from '../../components/ui/Card';
+import { Enterprise } from '../../types/models';
 
 export default function EnterprisesScreen() {
+  const { executeWithErrorHandling, executeDeleteWithListUpdate } = useApiError();
   const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,15 +26,24 @@ export default function EnterprisesScreen() {
   const loadEnterprises = async () => {
     setLoading(true);
     setError(null);
-    try {
-      const data = await apiService.getEnterprises();
-      setEnterprises(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar empresas');
-    } finally {
-      setLoading(false);
+    
+    const result = await executeWithErrorHandling(
+      () => apiService.getEnterprises(),
+      'Erro ao carregar empresas'
+    );
+
+    if (result) {
+      setEnterprises(result);
     }
+    
+    setLoading(false);
   };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadEnterprises();
+    }, [])
+  );
 
   const handleDeleteEnterprise = (enterprise: Enterprise) => {
     Alert.alert(
@@ -44,12 +55,16 @@ export default function EnterprisesScreen() {
           text: 'Excluir',
           style: 'destructive',
           onPress: async () => {
-            try {
-              await apiService.deleteEnterprise(enterprise);
-              setEnterprises(prev => prev.filter(e => e.id !== enterprise.id));
+            const success = await executeDeleteWithListUpdate(
+              () => apiService.deleteEnterprise(enterprise),
+              enterprise,
+              setEnterprises,
+              (item) => item.id!,
+              'Erro ao excluir empresa'
+            );
+
+            if (success) {
               Alert.alert('Sucesso', 'Empresa excluída com sucesso!');
-            } catch (err) {
-              Alert.alert('Erro', 'Erro ao excluir empresa');
             }
           },
         },
@@ -76,14 +91,6 @@ export default function EnterprisesScreen() {
   const formatDate = (date: Date | string) => {
     return new Date(date).toLocaleDateString('pt-BR');
   };
-
-  useEffect(() => {
-    loadEnterprises();
-  }, []);
-
-  if (error) {
-    Alert.alert('Erro', error);
-  }
 
   return (
     <SafeAreaView style={styles.container}>

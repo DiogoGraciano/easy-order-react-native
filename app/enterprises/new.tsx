@@ -2,25 +2,27 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
+import { DatePicker } from '../../components/ui/DatePicker';
+import { useApiError } from '../../hooks/useApiError';
 import { apiService } from '../../services/apiService';
-import { Enterprise } from '../../types/models';
+import { Enterprise, validateCNPJ } from '../../types/models';
 
 export default function NewEnterpriseScreen() {
+  const { executeWithErrorHandling } = useApiError();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<Partial<Enterprise>>({
-    logo: null,
     legalName: '',
     tradeName: '',
     cnpj: '',
@@ -37,11 +39,13 @@ export default function NewEnterpriseScreen() {
 
   const formatCNPJ = (text: string) => {
     const cleaned = text.replace(/\D/g, '');
-    const formatted = cleaned.replace(
-      /^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,
-      '$1.$2.$3/$4-$5'
-    );
-    return formatted;
+    if (cleaned.length <= 14) {
+      return cleaned.replace(
+        /^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,
+        '$1.$2.$3/$4-$5'
+      );
+    }
+    return text;
   };
 
   const handleCNPJChange = (text: string) => {
@@ -49,6 +53,13 @@ export default function NewEnterpriseScreen() {
     if (cleaned.length <= 14) {
       handleInputChange('cnpj', cleaned);
     }
+  };
+
+  const handleDateChange = (date: Date) => {
+    setFormData(prev => ({
+      ...prev,
+      foundationDate: date.toISOString(),
+    }));
   };
 
   const validateForm = (): boolean => {
@@ -60,10 +71,13 @@ export default function NewEnterpriseScreen() {
       Alert.alert('Erro', 'Nome Fantasia é obrigatório');
       return false;
     }
-    if (!formData.cnpj || formData.cnpj.length !== 14) {
-      Alert.alert('Erro', 'CNPJ deve ter 14 dígitos');
+    
+    const cnpjValidation = validateCNPJ(formData.cnpj || '');
+    if (!cnpjValidation.isValid) {
+      Alert.alert('Erro', cnpjValidation.message);
       return false;
     }
+    
     if (!formData.address?.trim()) {
       Alert.alert('Erro', 'Endereço é obrigatório');
       return false;
@@ -75,16 +89,19 @@ export default function NewEnterpriseScreen() {
     if (!validateForm()) return;
 
     setLoading(true);
-    try {
-      await apiService.saveEnterprise(formData as Enterprise);
+    
+    const result = await executeWithErrorHandling(
+      () => apiService.saveEnterprise(formData as Enterprise),
+      'Erro ao cadastrar empresa'
+    );
+
+    if (result) {
       Alert.alert('Sucesso', 'Empresa cadastrada com sucesso!', [
         { text: 'OK', onPress: () => router.back() }
       ]);
-    } catch (error) {
-      Alert.alert('Erro', 'Erro ao cadastrar empresa');
-    } finally {
-      setLoading(false);
     }
+    
+    setLoading(false);
   };
 
   const handleCancel = () => {
@@ -159,15 +176,12 @@ export default function NewEnterpriseScreen() {
 
               {/* Data de Fundação */}
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Data de Fundação</Text>
-                <TouchableOpacity style={styles.dateInput}>
-                  <Text style={styles.dateText}>
-                    {formData.foundationDate
-                      ? new Date(formData.foundationDate).toLocaleDateString('pt-BR')
-                      : 'Selecionar data'}
-                  </Text>
-                  <Ionicons name="calendar-outline" size={20} color="#666" />
-                </TouchableOpacity>
+                <DatePicker
+                  value={formData.foundationDate ? new Date(formData.foundationDate) : new Date()}
+                  onChange={handleDateChange}
+                  label="Data de Fundação"
+                  placeholder="Selecionar data de fundação"
+                />
               </View>
 
               {/* Endereço */}
@@ -184,14 +198,7 @@ export default function NewEnterpriseScreen() {
                 />
               </View>
 
-              {/* Logo */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Logo</Text>
-                <TouchableOpacity style={styles.logoButton}>
-                  <Ionicons name="image-outline" size={24} color="#666" />
-                  <Text style={styles.logoButtonText}>Adicionar Logo</Text>
-                </TouchableOpacity>
-              </View>
+
             </CardContent>
           </Card>
         </ScrollView>
@@ -271,34 +278,5 @@ const styles = StyleSheet.create({
     height: 80,
     textAlignVertical: 'top',
   },
-  dateInput: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  dateText: {
-    fontSize: 16,
-    color: '#333',
-  },
-  logoButton: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingVertical: 24,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
-  logoButtonText: {
-    fontSize: 16,
-    color: '#666',
-  },
+
 }); 

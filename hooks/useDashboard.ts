@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { apiService } from '../services/apiService';
 import { ChartData, Customer, DashboardMetrics, Enterprise, Order, Product } from '../types/models';
 
@@ -24,7 +24,39 @@ export const useDashboard = () => {
     }]
   });
 
-  const loadDashboardData = async () => {
+  const calculateMetrics = useCallback((ordersData: Order[], customersData: Customer[], productsData: Product[]) => {
+    // Basic counts
+    const totalOrders = ordersData.length;
+    const totalCustomers = customersData.length;
+    const totalProducts = productsData.length;
+    
+    // Total sales amount
+    const totalSales = ordersData.reduce((sum, order) => sum + order.totalAmount, 0);
+    
+    // Count by status
+    const pendingCount = ordersData.filter(order => order.status === 'pending').length;
+    const completedCount = ordersData.filter(order => order.status === 'completed').length;
+    const cancelledCount = ordersData.filter(order => order.status === 'cancelled').length;
+    
+    setMetrics({
+      totalOrders,
+      totalCustomers,
+      totalProducts,
+      totalSales,
+      pendingOrders: pendingCount,
+    });
+
+    // Update chart data
+    setChartData({
+      labels: ['Pendente', 'Completo', 'Cancelado'],
+      datasets: [{
+        data: [pendingCount, completedCount, cancelledCount],
+        backgroundColor: ['#ffce56', '#36a2eb', '#ff6384']
+      }]
+    });
+  }, []);
+
+  const loadDashboardData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -46,72 +78,31 @@ export const useDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [calculateMetrics]);
 
-  const calculateMetrics = (ordersData: Order[], customersData: Customer[], productsData: Product[]) => {
-    // Basic counts
-    const totalOrders = ordersData.length;
-    const totalCustomers = customersData.length;
-    const totalProducts = productsData.length;
-    
-    // Total sales amount
-    const totalSales = ordersData.reduce((sum, order) => sum + order.totalAmount, 0);
-    
-    // Count by status
-    const pendingCount = ordersData.filter(order => order.status === 'PENDING').length;
-    const confirmedCount = ordersData.filter(order => order.status === 'CONFIRMED').length;
-    const preparingCount = ordersData.filter(order => order.status === 'PREPARING').length;
-    const readyCount = ordersData.filter(order => order.status === 'READY').length;
-    const deliveredCount = ordersData.filter(order => order.status === 'DELIVERED').length;
-    const cancelledCount = ordersData.filter(order => order.status === 'CANCELLED').length;
-    
-    setMetrics({
-      totalOrders,
-      totalCustomers,
-      totalProducts,
-      totalSales,
-      pendingOrders: pendingCount,
-    });
-
-    // Update chart data
-    setChartData({
-      labels: ['Pendente', 'Confirmado', 'Preparando', 'Pronto', 'Entregue', 'Cancelado'],
-      datasets: [{
-        data: [pendingCount, confirmedCount, preparingCount, readyCount, deliveredCount, cancelledCount],
-        backgroundColor: ['#ffce56', '#007AFF', '#FF9500', '#34C759', '#36a2eb', '#ff6384']
-      }]
-    });
-  };
-
-  const getRecentOrders = (limit: number = 5) => {
+  const getRecentOrders = useCallback((limit: number = 5) => {
     return orders
       .sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime())
       .slice(0, limit);
-  };
+  }, [orders]);
 
-  const getStatusColor = (status: string): string => {
+  const getStatusColor = useCallback((status: string): string => {
     switch (status) {
-      case 'PENDING': return '#ffce56';
-      case 'CONFIRMED': return '#007AFF';
-      case 'PREPARING': return '#FF9500';
-      case 'READY': return '#34C759';
-      case 'DELIVERED': return '#36a2eb';
-      case 'CANCELLED': return '#ff6384';
+      case 'pending': return '#ffce56';
+      case 'completed': return '#36a2eb';
+      case 'cancelled': return '#ff6384';
       default: return '#666';
     }
-  };
+  }, []);
 
-  const getStatusText = (status: string): string => {
+  const getStatusText = useCallback((status: string): string => {
     switch (status) {
-      case 'PENDING': return 'Pendente';
-      case 'CONFIRMED': return 'Confirmado';
-      case 'PREPARING': return 'Preparando';
-      case 'READY': return 'Pronto';
-      case 'DELIVERED': return 'Entregue';
-      case 'CANCELLED': return 'Cancelado';
+      case 'pending': return 'Pendente';
+      case 'completed': return 'Completo';
+      case 'cancelled': return 'Cancelado';
       default: return status;
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadDashboardData();
