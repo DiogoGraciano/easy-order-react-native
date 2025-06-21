@@ -1,75 +1,307 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import React from 'react';
+import {
+  Alert,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Card, CardContent, CardHeader, CardSubtitle, CardTitle } from '../../components/ui/Card';
+import { MetricCard } from '../../components/ui/MetricCard';
+import { useDashboard } from '../../hooks/useDashboard';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+export default function DashboardScreen() {
+  const {
+    loading,
+    error,
+    metrics,
+    loadDashboardData,
+    getRecentOrders,
+    getStatusColor,
+    getStatusText,
+  } = useDashboard();
 
-export default function HomeScreen() {
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(value);
+  };
+
+  const formatDate = (date: Date | string) => {
+    return new Date(date).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const handleQuickAction = (route: string) => {
+    router.push(route as any);
+  };
+
+  const recentOrders = getRecentOrders();
+
+  if (error) {
+    Alert.alert('Erro', error);
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={loadDashboardData} />
+        }
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Bem-vindo ao Easy Order</Text>
+        </View>
+
+        {/* Metrics Cards */}
+        <View style={styles.metricsContainer}>
+          <View style={styles.metricsRow}>
+            <MetricCard
+              title="Total de Pedidos"
+              value={metrics.totalOrders}
+              icon="cart-outline"
+              backgroundColor="#007AFF"
+            />
+            <MetricCard
+              title="Total de Vendas"
+              value={formatCurrency(metrics.totalSales)}
+              icon="cash-outline"
+              backgroundColor="#34C759"
+            />
+          </View>
+          <View style={styles.metricsRow}>
+            <MetricCard
+              title="Clientes"
+              value={metrics.totalCustomers}
+              icon="people-outline"
+              backgroundColor="#FF9500"
+            />
+            <MetricCard
+              title="Produtos"
+              value={metrics.totalProducts}
+              icon="cube-outline"
+              backgroundColor="#8E8E93"
+            />
+          </View>
+        </View>
+
+        {/* Recent Orders */}
+        <Card style={styles.recentOrdersCard}>
+          <CardHeader>
+            <CardTitle>Pedidos Recentes</CardTitle>
+            <CardSubtitle>{metrics.pendingOrders} pedidos pendentes</CardSubtitle>
+          </CardHeader>
+          <CardContent>
+            {recentOrders.length > 0 ? (
+              recentOrders.map((order) => (
+                <TouchableOpacity
+                  key={order.id}
+                  style={styles.orderItem}
+                  onPress={() => handleQuickAction(`/orders/${order.id}`)}
+                >
+                  <View style={styles.orderInfo}>
+                    <Text style={styles.orderNumber}>
+                      Pedido #{order.orderNumber}
+                    </Text>
+                    <Text style={styles.orderDate}>
+                      Data: {formatDate(order.orderDate)}
+                    </Text>
+                    <Text style={styles.orderAmount}>
+                      Valor: {formatCurrency(order.totalAmount)}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      { backgroundColor: getStatusColor(order.status) },
+                    ]}
+                  >
+                    <Text style={styles.statusText}>
+                      {getStatusText(order.status)}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyText}>Nenhum pedido encontrado</Text>
+              </View>
+            )}
+            <TouchableOpacity
+              style={styles.viewAllButton}
+              onPress={() => handleQuickAction('/orders')}
+            >
+              <Text style={styles.viewAllText}>Ver Todos os Pedidos</Text>
+            </TouchableOpacity>
+          </CardContent>
+        </Card>
+
+        {/* Quick Actions */}
+        <Card style={styles.quickActionsCard}>
+          <CardHeader>
+            <CardTitle>Ações Rápidas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <View style={styles.quickActionsGrid}>
+              <TouchableOpacity
+                style={[styles.quickActionButton, { backgroundColor: '#007AFF' }]}
+                onPress={() => handleQuickAction('/orders/new')}
+              >
+                <Ionicons name="add-circle-outline" size={24} color="#fff" />
+                <Text style={styles.quickActionText}>Novo Pedido</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.quickActionButton, { backgroundColor: '#34C759' }]}
+                onPress={() => handleQuickAction('/customers/new')}
+              >
+                <Ionicons name="person-add-outline" size={24} color="#fff" />
+                <Text style={styles.quickActionText}>Novo Cliente</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.quickActionButton, { backgroundColor: '#FF9500' }]}
+                onPress={() => handleQuickAction('/products/new')}
+              >
+                <Ionicons name="cube-outline" size={24} color="#fff" />
+                <Text style={styles.quickActionText}>Novo Produto</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.quickActionButton, { backgroundColor: '#8E8E93' }]}
+                onPress={() => handleQuickAction('/enterprises/new')}
+              >
+                <Ionicons name="business-outline" size={24} color="#fff" />
+                <Text style={styles.quickActionText}>Nova Empresa</Text>
+              </TouchableOpacity>
+            </View>
+          </CardContent>
+        </Card>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  header: {
+    padding: 20,
     alignItems: 'center',
-    gap: 8,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  metricsContainer: {
+    paddingHorizontal: 8,
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  recentOrdersCard: {
+    marginTop: 16,
+  },
+  orderItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  orderInfo: {
+    flex: 1,
+  },
+  orderNumber: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  orderDate: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 2,
+  },
+  orderAmount: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 2,
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  statusText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  viewAllButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    borderRadius: 8,
+  },
+  viewAllText: {
+    color: '#007AFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  quickActionsCard: {
+    marginTop: 16,
+    marginBottom: 32,
+  },
+  quickActionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  quickActionButton: {
+    width: '48%',
+    height: 70,
+    aspectRatio: 1.5,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  quickActionText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 8,
+    textAlign: 'center',
   },
 });

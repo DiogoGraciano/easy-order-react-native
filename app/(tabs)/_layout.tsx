@@ -1,9 +1,9 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
 import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -29,15 +29,36 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: 'Dashboard',
+          tabBarIcon: ({ color }) => <Ionicons name="home-outline" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="orders"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Pedidos',
+          tabBarIcon: ({ color }) => <Ionicons name="cart-outline" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="customers"
+        options={{
+          title: 'Clientes',
+          tabBarIcon: ({ color }) => <Ionicons name="people-outline" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="products"
+        options={{
+          title: 'Produtos',
+          tabBarIcon: ({ color }) => <Ionicons name="cube-outline" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="enterprises"
+        options={{
+          title: 'Empresas',
+          tabBarIcon: ({ color }) => <Ionicons name="business-outline" size={24} color={color} />,
         }}
       />
     </Tabs>
