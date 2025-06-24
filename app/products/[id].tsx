@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   previewCard: {
-    marginBottom: 20,
+    marginBottom: 50,
   },
   inputGroup: {
     marginBottom: 20,

@@ -25,15 +25,22 @@ export const useDashboard = () => {
   });
 
   const calculateMetrics = useCallback((ordersData: Order[], customersData: Customer[], productsData: Product[]) => {
-    // Basic counts
     const totalOrders = ordersData.length;
     const totalCustomers = customersData.length;
     const totalProducts = productsData.length;
+ 
+    const totalSales = ordersData.reduce((sum, order) => {
+      let amount = order.totalAmount;
+      if (typeof amount === 'number' && !isNaN(amount) && isFinite(amount)) {
+        return sum + amount;
+      }
+      else if (typeof amount === 'string' && amount !== '') {
+        return sum + parseFloat(amount);
+      }
+
+      return sum;
+    }, 0);
     
-    // Total sales amount
-    const totalSales = ordersData.reduce((sum, order) => sum + order.totalAmount, 0);
-    
-    // Count by status
     const pendingCount = ordersData.filter(order => order.status === 'pending').length;
     const completedCount = ordersData.filter(order => order.status === 'completed').length;
     const cancelledCount = ordersData.filter(order => order.status === 'cancelled').length;
@@ -46,7 +53,6 @@ export const useDashboard = () => {
       pendingOrders: pendingCount,
     });
 
-    // Update chart data
     setChartData({
       labels: ['Pendente', 'Completo', 'Cancelado'],
       datasets: [{

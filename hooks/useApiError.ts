@@ -20,9 +20,6 @@ export const useApiError = () => {
     } else if (typeof error === 'string') {
       message = error;
     }
-
-    console.log(message);
-
     setTimeout(() => {
       Alert.alert(title, message);
     }, 100);

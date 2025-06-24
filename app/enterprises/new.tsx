@@ -137,7 +137,6 @@ export default function NewEnterpriseScreen() {
               <CardTitle>Informações da Empresa</CardTitle>
             </CardHeader>
             <CardContent>
-              {/* Razão Social */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Razão Social *</Text>
                 <TextInput
@@ -148,8 +147,6 @@ export default function NewEnterpriseScreen() {
                   placeholderTextColor="#999"
                 />
               </View>
-
-              {/* Nome Fantasia */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Nome Fantasia *</Text>
                 <TextInput
@@ -160,8 +157,6 @@ export default function NewEnterpriseScreen() {
                   placeholderTextColor="#999"
                 />
               </View>
-
-              {/* CNPJ */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>CNPJ *</Text>
                 <TextInput
@@ -173,8 +168,6 @@ export default function NewEnterpriseScreen() {
                   keyboardType="numeric"
                 />
               </View>
-
-              {/* Data de Fundação */}
               <View style={styles.inputGroup}>
                 <DatePicker
                   value={formData.foundationDate ? new Date(formData.foundationDate) : new Date()}
@@ -183,8 +176,6 @@ export default function NewEnterpriseScreen() {
                   placeholder="Selecionar data de fundação"
                 />
               </View>
-
-              {/* Endereço */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Endereço *</Text>
                 <TextInput
@@ -197,8 +188,6 @@ export default function NewEnterpriseScreen() {
                   numberOfLines={3}
                 />
               </View>
-
-
             </CardContent>
           </Card>
         </ScrollView>

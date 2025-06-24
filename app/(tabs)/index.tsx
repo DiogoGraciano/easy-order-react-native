@@ -27,10 +27,18 @@ export default function DashboardScreen() {
   } = useDashboard();
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(value);
+    if (typeof value === 'string' && value !== '') {
+      return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+      }).format(parseFloat(value));
+    }
+    else {
+      return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+      }).format(value);
+    }
   };
 
   const formatDate = (date: Date | string) => {
@@ -61,12 +69,10 @@ export default function DashboardScreen() {
           <RefreshControl refreshing={loading} onRefresh={loadDashboardData} />
         }
       >
-        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Bem-vindo ao Easy Order</Text>
         </View>
 
-        {/* Metrics Cards */}
         <View style={styles.metricsContainer}>
           <View style={styles.metricsRow}>
             <MetricCard
@@ -98,7 +104,6 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* Recent Orders */}
         <Card style={styles.recentOrdersCard}>
           <CardHeader>
             <CardTitle>Pedidos Recentes</CardTitle>
@@ -120,7 +125,7 @@ export default function DashboardScreen() {
                       Data: {formatDate(order.orderDate)}
                     </Text>
                     <Text style={styles.orderAmount}>
-                      Valor: {formatCurrency(order.totalAmount)}
+                      Valor: {formatCurrency(order.totalAmount || 0)}
                     </Text>
                   </View>
                   <View
@@ -149,7 +154,6 @@ export default function DashboardScreen() {
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
         <Card style={styles.quickActionsCard}>
           <CardHeader>
             <CardTitle>Ações Rápidas</CardTitle>
@@ -163,7 +167,7 @@ export default function DashboardScreen() {
                 <Ionicons name="add-circle-outline" size={24} color="#fff" />
                 <Text style={styles.quickActionText}>Novo Pedido</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={[styles.quickActionButton, { backgroundColor: '#34C759' }]}
                 onPress={() => handleQuickAction('/customers/new')}
@@ -171,7 +175,7 @@ export default function DashboardScreen() {
                 <Ionicons name="person-add-outline" size={24} color="#fff" />
                 <Text style={styles.quickActionText}>Novo Cliente</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={[styles.quickActionButton, { backgroundColor: '#FF9500' }]}
                 onPress={() => handleQuickAction('/products/new')}
@@ -179,7 +183,7 @@ export default function DashboardScreen() {
                 <Ionicons name="cube-outline" size={24} color="#fff" />
                 <Text style={styles.quickActionText}>Novo Produto</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={[styles.quickActionButton, { backgroundColor: '#8E8E93' }]}
                 onPress={() => handleQuickAction('/enterprises/new')}

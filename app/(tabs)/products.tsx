@@ -2,14 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
-    Alert,
-    Image,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, CardContent, CardHeader, CardSubtitle, CardTitle } from '../../components/ui/Card';
@@ -39,7 +39,6 @@ export default function ProductsScreen() {
     setLoading(false);
   };
 
-  // Recarrega a lista sempre que a tela ganhar foco
   useFocusEffect(
     useCallback(() => {
       loadProducts();
