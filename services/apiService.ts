@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Customer, Enterprise, Order, Product } from '../types/models';
 
 const API_BASE_URL = 'http://192.168.0.102:3000';
@@ -11,10 +12,15 @@ interface ApiError {
 class ApiService {
   private async request<T>(url: string, options?: RequestInit): Promise<T> {
     const fullUrl = `${API_BASE_URL}${url}`;
+    
+    // Obter token do AsyncStorage
+    const token = await AsyncStorage.getItem('auth_token');
+    
     try {
       const response = await fetch(fullUrl, {
         headers: {
           'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
           ...options?.headers,
         },
         ...options,

@@ -67,10 +67,10 @@ export const useDashboard = () => {
     setError(null);
     try {
       const [ordersData, customersData, productsData, enterprisesData] = await Promise.all([
-        apiService.getOrders(),
-        apiService.getCustomers(),
-        apiService.getProducts(),
-        apiService.getEnterprises(),
+        apiService.getOrders().catch(() => []), // Retorna array vazio em caso de erro
+        apiService.getCustomers().catch(() => []),
+        apiService.getProducts().catch(() => []),
+        apiService.getEnterprises().catch(() => []),
       ]);
 
       setOrders(ordersData);
@@ -80,7 +80,14 @@ export const useDashboard = () => {
 
       calculateMetrics(ordersData, customersData, productsData);
     } catch (err) {
+      console.error('Erro ao carregar dados do dashboard:', err);
       setError(err instanceof Error ? err.message : 'Erro ao carregar dados do dashboard');
+      // Definir dados vazios para evitar tela branca
+      setOrders([]);
+      setCustomers([]);
+      setProducts([]);
+      setEnterprises([]);
+      calculateMetrics([], [], []);
     } finally {
       setLoading(false);
     }

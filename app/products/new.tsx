@@ -14,11 +14,32 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useForm, Controller } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { useApiError } from '../../hooks/useApiError';
 import { apiService } from '../../services/apiService';
 import { Enterprise, Product } from '../../types/models';
+
+// Schema de validação
+const productSchema = yup.object().shape({
+  name: yup.string().required().min(2),
+  description: yup.string().required().min(10),
+  price: yup.number().required().positive(),
+  stock: yup.number().required().integer().min(0),
+  enterpriseId: yup.string().required(),
+});
+
+// Tipo
+type ProductFormData = {
+  name: string;
+  description: string;
+  price: number;
+  stock: number;
+  enterpriseId: string;
+};
 
 export default function NewProductScreen() {
   const { executeWithErrorHandling } = useApiError();
@@ -26,13 +47,26 @@ export default function NewProductScreen() {
   const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
   const [selectedEnterprise, setSelectedEnterprise] = useState<Enterprise | null>(null);
   const [showEnterpriseModal, setShowEnterpriseModal] = useState(false);
-  const [formData, setFormData] = useState<Partial<Product>>({
-    name: '',
-    description: '',
-    price: 0,
-    stock: 0,
-    enterpriseId: '',
+
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+    watch,
+    setValue,
+  } = useForm<ProductFormData>({
+    resolver: yupResolver(productSchema) as any,
+    mode: 'onBlur',
+    defaultValues: {
+      name: '',
+      description: '',
+      price: 0,
+      stock: 0,
+      enterpriseId: '',
+    },
   });
+
+  const watchedValues = watch();
 
   const loadEnterprises = async () => {
     const result = await executeWithErrorHandling(
@@ -49,19 +83,9 @@ export default function NewProductScreen() {
     loadEnterprises();
   }, []);
 
-  const handleInputChange = (field: keyof Product, value: string | number) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
   const handleSelectEnterprise = (enterprise: Enterprise) => {
     setSelectedEnterprise(enterprise);
-    setFormData(prev => ({
-      ...prev,
-      enterpriseId: enterprise.id!,
-    }));
+    setValue('enterpriseId', enterprise.id!);
     setShowEnterpriseModal(false);
   };
 
@@ -71,47 +95,11 @@ export default function NewProductScreen() {
     return formattedValue;
   };
 
-  const handlePriceChange = (text: string) => {
-    const formatted = formatCurrency(text);
-    handleInputChange('price', parseFloat(formatted));
-  };
-
-  const handleStockChange = (text: string) => {
-    const numericValue = text.replace(/\D/g, '');
-    handleInputChange('stock', parseInt(numericValue) || 0);
-  };
-
-  const validateForm = (): boolean => {
-    if (!formData.name?.trim()) {
-      Alert.alert('Erro', 'Nome do produto é obrigatório');
-      return false;
-    }
-    if (!formData.description?.trim()) {
-      Alert.alert('Erro', 'Descrição é obrigatória');
-      return false;
-    }
-    if (!formData.price || formData.price <= 0) {
-      Alert.alert('Erro', 'Preço deve ser maior que zero');
-      return false;
-    }
-    if (formData.stock === undefined || formData.stock < 0) {
-      Alert.alert('Erro', 'Estoque deve ser um número válido');
-      return false;
-    }
-    if (!selectedEnterprise) {
-      Alert.alert('Erro', 'Selecione uma empresa');
-      return false;
-    }
-    return true;
-  };
-
-  const handleSave = async () => {
-    if (!validateForm()) return;
-
+  const handleSave = async (data: ProductFormData) => {
     setLoading(true);
     
     const result = await executeWithErrorHandling(
-      () => apiService.saveProduct(formData as Product),
+      () => apiService.saveProduct(data as Product),
       'Erro ao cadastrar produto'
     );
 
@@ -156,7 +144,7 @@ export default function NewProductScreen() {
           <Text style={styles.headerTitle}>Novo Produto</Text>
           <TouchableOpacity
             style={[styles.saveButton, loading && styles.saveButtonDisabled]}
-            onPress={handleSave}
+            onPress={handleSubmit(handleSave)}
             disabled={loading}
           >
             <Text style={styles.saveButtonText}>
@@ -173,32 +161,50 @@ export default function NewProductScreen() {
             <CardContent>
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Nome *</Text>
-                <TextInput
-                  style={styles.input}
-                  value={formData.name}
-                  onChangeText={(text) => handleInputChange('name', text)}
-                  placeholder="Digite o nome do produto"
-                  placeholderTextColor="#999"
+                <Controller
+                  control={control}
+                  name="name"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      style={[styles.input, errors.name && styles.inputError]}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="Digite o nome do produto"
+                      placeholderTextColor="#999"
+                    />
+                  )}
                 />
+                {errors.name && (
+                  <Text style={styles.errorText}>{errors.name.message}</Text>
+                )}
               </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Descrição *</Text>
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  value={formData.description}
-                  onChangeText={(text) => handleInputChange('description', text)}
-                  placeholder="Digite a descrição do produto"
-                  placeholderTextColor="#999"
-                  multiline
-                  numberOfLines={3}
+                <Controller
+                  control={control}
+                  name="description"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      style={[styles.input, styles.textArea, errors.description && styles.inputError]}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="Digite a descrição do produto"
+                      placeholderTextColor="#999"
+                      multiline
+                      numberOfLines={3}
+                    />
+                  )}
                 />
+                {errors.description && (
+                  <Text style={styles.errorText}>{errors.description.message}</Text>
+                )}
               </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Empresa *</Text>
                 <TouchableOpacity
-                  style={styles.enterpriseButton}
+                  style={[styles.enterpriseButton, errors.enterpriseId && styles.inputError]}
                   onPress={() => setShowEnterpriseModal(true)}
                 >
                   {selectedEnterprise ? (
@@ -213,30 +219,57 @@ export default function NewProductScreen() {
                   )}
                   <Ionicons name="chevron-down" size={20} color="#666" />
                 </TouchableOpacity>
+                {errors.enterpriseId && (
+                  <Text style={styles.errorText}>{errors.enterpriseId.message}</Text>
+                )}
               </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Preço *</Text>
-                <TextInput
-                  style={styles.input}
-                  value={formData.price ? formatDisplayPrice(formData.price) : ''}
-                  onChangeText={handlePriceChange}
-                  placeholder="R$ 0,00"
-                  placeholderTextColor="#999"
-                  keyboardType="numeric"
+                <Controller
+                  control={control}
+                  name="price"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      style={[styles.input, errors.price && styles.inputError]}
+                      value={value ? formatDisplayPrice(value) : ''}
+                      onChangeText={(text) => {
+                        const formatted = formatCurrency(text);
+                        onChange(parseFloat(formatted));
+                      }}
+                      placeholder="R$ 0,00"
+                      placeholderTextColor="#999"
+                      keyboardType="numeric"
+                    />
+                  )}
                 />
+                {errors.price && (
+                  <Text style={styles.errorText}>{errors.price.message}</Text>
+                )}
               </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Estoque *</Text>
-                <TextInput
-                  style={styles.input}
-                  value={formData.stock?.toString() || ''}
-                  onChangeText={handleStockChange}
-                  placeholder="Quantidade em estoque"
-                  placeholderTextColor="#999"
-                  keyboardType="numeric"
+                <Controller
+                  control={control}
+                  name="stock"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      style={[styles.input, errors.stock && styles.inputError]}
+                      value={value?.toString() || ''}
+                      onChangeText={(text) => {
+                        const numericValue = text.replace(/\D/g, '');
+                        onChange(parseInt(numericValue) || 0);
+                      }}
+                      placeholder="Quantidade em estoque"
+                      placeholderTextColor="#999"
+                      keyboardType="numeric"
+                    />
+                  )}
                 />
+                {errors.stock && (
+                  <Text style={styles.errorText}>{errors.stock.message}</Text>
+                )}
               </View>
 
 
@@ -254,19 +287,19 @@ export default function NewProductScreen() {
                 </View>
                 <View style={styles.previewInfo}>
                   <Text style={styles.previewName}>
-                    {formData.name || 'Nome do produto'}
+                    {watchedValues.name || 'Nome do produto'}
                   </Text>
                   <Text style={styles.previewDescription}>
-                    {formData.description || 'Descrição do produto'}
+                    {watchedValues.description || 'Descrição do produto'}
                   </Text>
                   <Text style={styles.previewEnterprise}>
                     🏢 {selectedEnterprise?.tradeName || 'Empresa não selecionada'}
                   </Text>
                   <Text style={styles.previewPrice}>
-                    {formData.price ? formatDisplayPrice(formData.price) : 'R$ 0,00'}
+                    {watchedValues.price ? formatDisplayPrice(watchedValues.price) : 'R$ 0,00'}
                   </Text>
                   <Text style={styles.previewStock}>
-                    Estoque: {formData.stock || 0} unidades
+                    Estoque: {watchedValues.stock || 0} unidades
                   </Text>
                 </View>
               </View>
@@ -387,6 +420,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     color: '#333',
+  },
+  inputError: {
+    borderColor: '#ff4444',
+    borderWidth: 2,
   },
   textArea: {
     height: 80,
@@ -515,5 +552,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#999',
     marginTop: 8,
+  },
+  errorText: {
+    color: '#ff4444',
+    fontSize: 12,
+    marginTop: -12,
+    marginBottom: 8,
+    marginLeft: 4,
   },
 }); 

@@ -57,10 +57,6 @@ export default function DashboardScreen() {
 
   const recentOrders = getRecentOrders();
 
-  if (error) {
-    Alert.alert('Erro', error);
-  }
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
@@ -72,6 +68,18 @@ export default function DashboardScreen() {
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Bem-vindo ao Easy Order</Text>
         </View>
+
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity 
+              style={styles.retryButton} 
+              onPress={loadDashboardData}
+            >
+              <Text style={styles.retryButtonText}>Tentar Novamente</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View style={styles.metricsContainer}>
           <View style={styles.metricsRow}>
@@ -307,5 +315,30 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 8,
     textAlign: 'center',
+  },
+  errorContainer: {
+    backgroundColor: '#ffebee',
+    padding: 16,
+    margin: 16,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#f44336',
+  },
+  errorText: {
+    color: '#c62828',
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  retryButton: {
+    backgroundColor: '#f44336',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

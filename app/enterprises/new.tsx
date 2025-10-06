@@ -12,30 +12,56 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useForm, Controller } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { DatePicker } from '../../components/ui/DatePicker';
 import { useApiError } from '../../hooks/useApiError';
 import { apiService } from '../../services/apiService';
-import { Enterprise, validateCNPJ } from '../../types/models';
+import { Enterprise } from '../../types/models';
+
+// Schema de validação
+const enterpriseSchema = yup.object().shape({
+  legalName: yup.string().required().min(2),
+  tradeName: yup.string().required().min(2),
+  cnpj: yup.string().required(),
+  foundationDate: yup.date().required(),
+  address: yup.string().required().min(10),
+});
+
+// Tipo
+type EnterpriseFormData = {
+  legalName: string;
+  tradeName: string;
+  cnpj: string;
+  foundationDate: Date;
+  address: string;
+};
 
 export default function NewEnterpriseScreen() {
   const { executeWithErrorHandling } = useApiError();
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState<Partial<Enterprise>>({
-    legalName: '',
-    tradeName: '',
-    cnpj: '',
-    foundationDate: new Date().toISOString(),
-    address: '',
+
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+    watch,
+  } = useForm<EnterpriseFormData>({
+    resolver: yupResolver(enterpriseSchema) as any,
+    mode: 'onBlur',
+    defaultValues: {
+      legalName: '',
+      tradeName: '',
+      cnpj: '',
+      foundationDate: new Date(),
+      address: '',
+    },
   });
 
-  const handleInputChange = (field: keyof Enterprise, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
+  const watchedValues = watch();
 
   const formatCNPJ = (text: string) => {
     const cleaned = text.replace(/\D/g, '');
@@ -48,50 +74,16 @@ export default function NewEnterpriseScreen() {
     return text;
   };
 
-  const handleCNPJChange = (text: string) => {
-    const cleaned = text.replace(/\D/g, '');
-    if (cleaned.length <= 14) {
-      handleInputChange('cnpj', cleaned);
-    }
-  };
-
-  const handleDateChange = (date: Date) => {
-    setFormData(prev => ({
-      ...prev,
-      foundationDate: date.toISOString(),
-    }));
-  };
-
-  const validateForm = (): boolean => {
-    if (!formData.legalName?.trim()) {
-      Alert.alert('Erro', 'Razão Social é obrigatória');
-      return false;
-    }
-    if (!formData.tradeName?.trim()) {
-      Alert.alert('Erro', 'Nome Fantasia é obrigatório');
-      return false;
-    }
-    
-    const cnpjValidation = validateCNPJ(formData.cnpj || '');
-    if (!cnpjValidation.isValid) {
-      Alert.alert('Erro', cnpjValidation.message);
-      return false;
-    }
-    
-    if (!formData.address?.trim()) {
-      Alert.alert('Erro', 'Endereço é obrigatório');
-      return false;
-    }
-    return true;
-  };
-
-  const handleSave = async () => {
-    if (!validateForm()) return;
-
+  const handleSave = async (data: EnterpriseFormData) => {
     setLoading(true);
     
+    const enterpriseData = {
+      ...data,
+      foundationDate: data.foundationDate.toISOString(),
+    };
+    
     const result = await executeWithErrorHandling(
-      () => apiService.saveEnterprise(formData as Enterprise),
+      () => apiService.saveEnterprise(enterpriseData as Enterprise),
       'Erro ao cadastrar empresa'
     );
 
@@ -122,7 +114,7 @@ export default function NewEnterpriseScreen() {
           <Text style={styles.headerTitle}>Nova Empresa</Text>
           <TouchableOpacity
             style={[styles.saveButton, loading && styles.saveButtonDisabled]}
-            onPress={handleSave}
+            onPress={handleSubmit(handleSave)}
             disabled={loading}
           >
             <Text style={styles.saveButtonText}>
@@ -139,54 +131,104 @@ export default function NewEnterpriseScreen() {
             <CardContent>
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Razão Social *</Text>
-                <TextInput
-                  style={styles.input}
-                  value={formData.legalName}
-                  onChangeText={(text) => handleInputChange('legalName', text)}
-                  placeholder="Digite a razão social"
-                  placeholderTextColor="#999"
+                <Controller
+                  control={control}
+                  name="legalName"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      style={[styles.input, errors.legalName && styles.inputError]}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="Digite a razão social"
+                      placeholderTextColor="#999"
+                    />
+                  )}
                 />
+                {errors.legalName && (
+                  <Text style={styles.errorText}>{errors.legalName.message}</Text>
+                )}
               </View>
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Nome Fantasia *</Text>
-                <TextInput
-                  style={styles.input}
-                  value={formData.tradeName}
-                  onChangeText={(text) => handleInputChange('tradeName', text)}
-                  placeholder="Digite o nome fantasia"
-                  placeholderTextColor="#999"
+                <Controller
+                  control={control}
+                  name="tradeName"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      style={[styles.input, errors.tradeName && styles.inputError]}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="Digite o nome fantasia"
+                      placeholderTextColor="#999"
+                    />
+                  )}
                 />
+                {errors.tradeName && (
+                  <Text style={styles.errorText}>{errors.tradeName.message}</Text>
+                )}
               </View>
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>CNPJ *</Text>
-                <TextInput
-                  style={styles.input}
-                  value={formatCNPJ(formData.cnpj || '')}
-                  onChangeText={handleCNPJChange}
-                  placeholder="00.000.000/0000-00"
-                  placeholderTextColor="#999"
-                  keyboardType="numeric"
+                <Controller
+                  control={control}
+                  name="cnpj"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      style={[styles.input, errors.cnpj && styles.inputError]}
+                      value={formatCNPJ(value || '')}
+                      onChangeText={(text) => {
+                        const cleaned = text.replace(/\D/g, '');
+                        if (cleaned.length <= 14) {
+                          onChange(cleaned);
+                        }
+                      }}
+                      placeholder="00.000.000/0000-00"
+                      placeholderTextColor="#999"
+                      keyboardType="numeric"
+                    />
+                  )}
                 />
+                {errors.cnpj && (
+                  <Text style={styles.errorText}>{errors.cnpj.message}</Text>
+                )}
               </View>
               <View style={styles.inputGroup}>
-                <DatePicker
-                  value={formData.foundationDate ? new Date(formData.foundationDate) : new Date()}
-                  onChange={handleDateChange}
-                  label="Data de Fundação"
-                  placeholder="Selecionar data de fundação"
+                <Controller
+                  control={control}
+                  name="foundationDate"
+                  render={({ field: { onChange, value } }) => (
+                    <DatePicker
+                      value={value}
+                      onChange={onChange}
+                      label="Data de Fundação"
+                      placeholder="Selecionar data de fundação"
+                    />
+                  )}
                 />
+                {errors.foundationDate && (
+                  <Text style={styles.errorText}>{errors.foundationDate.message}</Text>
+                )}
               </View>
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Endereço *</Text>
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  value={formData.address}
-                  onChangeText={(text) => handleInputChange('address', text)}
-                  placeholder="Digite o endereço completo"
-                  placeholderTextColor="#999"
-                  multiline
-                  numberOfLines={3}
+                <Controller
+                  control={control}
+                  name="address"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      style={[styles.input, styles.textArea, errors.address && styles.inputError]}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="Digite o endereço completo"
+                      placeholderTextColor="#999"
+                      multiline
+                      numberOfLines={3}
+                    />
+                  )}
                 />
+                {errors.address && (
+                  <Text style={styles.errorText}>{errors.address.message}</Text>
+                )}
               </View>
             </CardContent>
           </Card>
@@ -263,9 +305,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
+  inputError: {
+    borderColor: '#ff4444',
+    borderWidth: 2,
+  },
   textArea: {
     height: 80,
     textAlignVertical: 'top',
   },
-
+  errorText: {
+    color: '#ff4444',
+    fontSize: 12,
+    marginTop: -12,
+    marginBottom: 8,
+    marginLeft: 4,
+  },
 }); 
