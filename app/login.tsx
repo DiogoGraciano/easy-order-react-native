@@ -1,19 +1,20 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { clearError } from '../store/authSlice';
-import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import LoginForm from '../components/LoginForm';
 import RegisterForm from '../components/RegisterForm';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Colors } from '../constants/Colors';
+import { clearError } from '../store/authSlice';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
 
 
 export default function LoginScreen() {
@@ -27,44 +28,46 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.header}>
-          <Text style={styles.title}>EasyOrder</Text>
-          <Text style={styles.subtitle}>
-            {showRegister ? 'Crie sua conta' : 'Faça login em sua conta'}
-          </Text>
-        </View>
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
+          <View style={styles.header}>
+            <Text style={styles.title}>EasyOrder</Text>
+            <Text style={styles.subtitle}>
+              {showRegister ? 'Crie sua conta' : 'Faça login em sua conta'}
+            </Text>
+          </View>
 
-        <Card style={styles.card}>
-          <CardHeader>
-            <CardTitle size="large" style={styles.cardTitle}>
-              {showRegister ? 'Registrar' : 'Entrar'}
-            </CardTitle>
-          </CardHeader>
+          <Card style={styles.card}>
+            <CardHeader>
+              <CardTitle size="large" style={styles.cardTitle}>
+                {showRegister ? 'Registrar' : 'Entrar'}
+              </CardTitle>
+            </CardHeader>
 
-          <CardContent>
-            {error && (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
-                <TouchableOpacity onPress={clearErrors} style={styles.clearErrorButton}>
-                  <Text style={styles.clearErrorText}>✕</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+            <CardContent>
+              {error && (
+                <View style={styles.errorContainer}>
+                  <Text style={styles.errorText}>{error}</Text>
+                  <TouchableOpacity onPress={clearErrors} style={styles.clearErrorButton}>
+                    <Text style={styles.clearErrorText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
-            {showRegister ? (
-              <RegisterForm onSwitchToLogin={() => setShowRegister(false)} />
-            ) : (
-              <LoginForm onSwitchToRegister={() => setShowRegister(true)} />
-            )}
-          </CardContent>
-        </Card>
-      </ScrollView>
-    </KeyboardAvoidingView>
+              {showRegister ? (
+                <RegisterForm onSwitchToLogin={() => setShowRegister(false)} />
+              ) : (
+                <LoginForm onSwitchToRegister={() => setShowRegister(true)} />
+              )}
+            </CardContent>
+          </Card>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -72,6 +75,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  keyboardAvoid: {
+    flex: 1,
   },
   scrollContainer: {
     flexGrow: 1,

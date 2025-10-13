@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../constants/Colors';
 
 interface ConnectionErrorProps {
@@ -12,7 +13,7 @@ export const ConnectionError: React.FC<ConnectionErrorProps> = ({
   message = 'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.' 
 }) => {
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.icon}>⚠️</Text>
         <Text style={styles.title}>Erro de Conexão</Text>
@@ -21,7 +22,7 @@ export const ConnectionError: React.FC<ConnectionErrorProps> = ({
           <Text style={styles.retryButtonText}>Tentar Novamente</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 

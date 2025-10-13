@@ -1,18 +1,17 @@
+import { yupResolver } from '@hookform/resolvers/yup';
 import React from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import {
-  View,
+  ActivityIndicator,
+  StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
+  TouchableOpacity
 } from 'react-native';
-import { useForm, Controller } from 'react-hook-form';
-import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { registerUser } from '../store/authSlice';
 import { Colors } from '../constants/Colors';
+import { registerUser } from '../store/authSlice';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
 
 // Schema de validação
 const registerSchema = yup.object().shape({
@@ -32,9 +31,6 @@ const registerSchema = yup.object().shape({
     .string()
     .required('Confirmação de senha é obrigatória')
     .oneOf([yup.ref('password')], 'As senhas não coincidem'),
-  phone: yup.string().optional(),
-  cpf: yup.string().optional(),
-  address: yup.string().optional(),
 });
 
 // Tipos
@@ -43,9 +39,6 @@ type RegisterFormData = {
   email: string;
   password: string;
   confirmPassword: string;
-  phone?: string;
-  cpf?: string;
-  address?: string;
 };
 
 interface RegisterFormProps {
@@ -70,9 +63,6 @@ export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
       email: '',
       password: '',
       confirmPassword: '',
-      phone: '',
-      cpf: '',
-      address: '',
     },
   });
 
@@ -95,6 +85,7 @@ export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           <TextInput
             style={[styles.input, registerErrors.name && styles.inputError]}
             placeholder="Nome completo *"
+            placeholderTextColor="#999"
             value={value}
             onChangeText={onChange}
             onBlur={onBlur}
@@ -115,6 +106,7 @@ export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           <TextInput
             style={[styles.input, registerErrors.email && styles.inputError]}
             placeholder="Email *"
+            placeholderTextColor="#999"
             value={value}
             onChangeText={onChange}
             onBlur={onBlur}
@@ -136,6 +128,7 @@ export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           <TextInput
             style={[styles.input, registerErrors.password && styles.inputError]}
             placeholder="Senha *"
+            placeholderTextColor="#999"
             value={value}
             onChangeText={onChange}
             onBlur={onBlur}
@@ -156,6 +149,7 @@ export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           <TextInput
             style={[styles.input, registerErrors.confirmPassword && styles.inputError]}
             placeholder="Confirmar senha *"
+            placeholderTextColor="#999"
             value={value}
             onChangeText={onChange}
             onBlur={onBlur}
@@ -167,67 +161,6 @@ export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
       />
       {registerErrors.confirmPassword && (
         <Text style={styles.errorText}>{registerErrors.confirmPassword.message}</Text>
-      )}
-
-      <Controller
-        control={registerControl}
-        name="phone"
-        render={({ field: { onChange, onBlur, value } }) => (
-          <TextInput
-            style={[styles.input, registerErrors.phone && styles.inputError]}
-            placeholder="Telefone"
-            value={value}
-            onChangeText={onChange}
-            onBlur={onBlur}
-            keyboardType="phone-pad"
-            autoCorrect={false}
-            returnKeyType="next"
-          />
-        )}
-      />
-      {registerErrors.phone && (
-        <Text style={styles.errorText}>{registerErrors.phone.message}</Text>
-      )}
-
-      <Controller
-        control={registerControl}
-        name="cpf"
-        render={({ field: { onChange, onBlur, value } }) => (
-          <TextInput
-            style={[styles.input, registerErrors.cpf && styles.inputError]}
-            placeholder="CPF"
-            value={value}
-            onChangeText={onChange}
-            onBlur={onBlur}
-            keyboardType="numeric"
-            autoCorrect={false}
-            returnKeyType="next"
-          />
-        )}
-      />
-      {registerErrors.cpf && (
-        <Text style={styles.errorText}>{registerErrors.cpf.message}</Text>
-      )}
-
-      <Controller
-        control={registerControl}
-        name="address"
-        render={({ field: { onChange, onBlur, value } }) => (
-          <TextInput
-            style={[styles.input, styles.textArea, registerErrors.address && styles.inputError]}
-            placeholder="Endereço"
-            value={value}
-            onChangeText={onChange}
-            onBlur={onBlur}
-            multiline
-            numberOfLines={3}
-            autoCorrect={false}
-            returnKeyType="done"
-          />
-        )}
-      />
-      {registerErrors.address && (
-        <Text style={styles.errorText}>{registerErrors.address.message}</Text>
       )}
 
       <TouchableOpacity
@@ -263,14 +196,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     fontSize: 16,
     backgroundColor: '#fff',
+    color: '#333',
   },
   inputError: {
     borderColor: '#ff4444',
     borderWidth: 2,
-  },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top',
   },
   button: {
     borderRadius: 8,

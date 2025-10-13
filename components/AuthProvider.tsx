@@ -1,7 +1,8 @@
 import React, { useRef } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { ActivityIndicator, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { clearServerError, initializeAuth } from '../store/authSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { initializeAuth, clearServerError } from '../store/authSlice';
 import { ConnectionError } from './ConnectionError';
 
 interface AuthProviderProps {
@@ -27,9 +28,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Mostrar loading enquanto não inicializou
   if (!isInitialized || isLoading) {
     return (
-      <View style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007AFF" />
-      </View>
+      </SafeAreaView>
     );
   }
 

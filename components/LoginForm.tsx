@@ -1,18 +1,17 @@
+import { yupResolver } from '@hookform/resolvers/yup';
 import React from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import {
-  View,
+  ActivityIndicator,
+  StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
+  TouchableOpacity
 } from 'react-native';
-import { useForm, Controller } from 'react-hook-form';
-import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { loginUser } from '../store/authSlice';
 import { Colors } from '../constants/Colors';
+import { loginUser } from '../store/authSlice';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
 
 // Schema de validação
 const loginSchema = yup.object().shape({
@@ -72,6 +71,7 @@ export default function LoginForm({ onSwitchToRegister }: LoginFormProps) {
           <TextInput
             style={[styles.input, loginErrors.email && styles.inputError]}
             placeholder="Email"
+            placeholderTextColor="#999"
             value={value}
             onChangeText={onChange}
             onBlur={onBlur}
@@ -93,6 +93,7 @@ export default function LoginForm({ onSwitchToRegister }: LoginFormProps) {
           <TextInput
             style={[styles.input, loginErrors.password && styles.inputError]}
             placeholder="Senha"
+            placeholderTextColor="#999"
             value={value}
             onChangeText={onChange}
             onBlur={onBlur}
@@ -139,6 +140,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     fontSize: 16,
     backgroundColor: '#fff',
+    color: '#333',
   },
   inputError: {
     borderColor: '#ff4444',
