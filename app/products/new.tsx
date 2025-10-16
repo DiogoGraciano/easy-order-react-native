@@ -25,11 +25,30 @@ import { Enterprise, Product } from '../../types/models';
 
 // Schema de validação
 const productSchema = yup.object().shape({
-  name: yup.string().required().min(2),
-  description: yup.string().required().min(10),
-  price: yup.number().required().positive(),
-  stock: yup.number().required().integer().min(0),
-  enterpriseId: yup.string().required(),
+  name: yup
+    .string()
+    .required('Nome do produto é obrigatório')
+    .min(2, 'Nome deve ter no mínimo 2 caracteres')
+    .max(100, 'Nome deve ter no máximo 100 caracteres'),
+  description: yup
+    .string()
+    .required('Descrição é obrigatória')
+    .min(10, 'Descrição deve ter no mínimo 10 caracteres')
+    .max(500, 'Descrição deve ter no máximo 500 caracteres'),
+  price: yup
+    .number()
+    .required('Preço é obrigatório')
+    .positive('Preço deve ser maior que zero')
+    .max(999999.99, 'Preço deve ser menor que R$ 999.999,99'),
+  stock: yup
+    .number()
+    .required('Estoque é obrigatório')
+    .integer('Estoque deve ser um número inteiro')
+    .min(0, 'Estoque não pode ser negativo')
+    .max(99999, 'Estoque deve ser menor que 100.000'),
+  enterpriseId: yup
+    .string()
+    .required('Empresa é obrigatória'),
 });
 
 // Tipo
@@ -556,7 +575,7 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#ff4444',
     fontSize: 12,
-    marginTop: -12,
+    marginTop: 4,
     marginBottom: 8,
     marginLeft: 4,
   },

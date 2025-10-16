@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { authService } from '../services/authService';
+import { apiService } from '../services/apiService';
 
 export interface User {
   id: string;
@@ -34,12 +34,12 @@ export const initializeAuth = createAsyncThunk(
   'auth/initialize',
   async (_, { rejectWithValue }) => {
     try {
-      const token = await authService.getStoredToken();
-      const user = await authService.getStoredUser();
+      const token = await apiService.getStoredToken();
+      const user = await apiService.getStoredUser();
       
       if (token && user) {
         // Verificar se o servidor está disponível
-        const isServerAvailable = await authService.checkServerConnection();
+        const isServerAvailable = await apiService.checkServerConnection();
         
         if (!isServerAvailable) {
           // Servidor indisponível, mas manter dados locais
@@ -48,11 +48,11 @@ export const initializeAuth = createAsyncThunk(
         
         // Verificar se o token ainda é válido
         try {
-          const profile = await authService.getProfile();
+          const profile = await apiService.getProfile();
           return { user: profile, token, isServerAvailable: true };
         } catch (error) {
           // Token inválido, limpar dados
-          await authService.logout();
+          await apiService.logout();
           return { user: null, token: null, isServerAvailable: true };
         }
       }
@@ -68,7 +68,7 @@ export const loginUser = createAsyncThunk(
   'auth/login',
   async (credentials: { email: string; password: string }, { rejectWithValue }) => {
     try {
-      const response = await authService.login(credentials);
+      const response = await apiService.login(credentials);
       return response;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Erro ao fazer login');
@@ -87,7 +87,7 @@ export const registerUser = createAsyncThunk(
     address?: string;
   }, { rejectWithValue }) => {
     try {
-      const response = await authService.register(userData);
+      const response = await apiService.register(userData);
       return response;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Erro ao registrar usuário');
@@ -99,7 +99,7 @@ export const logoutUser = createAsyncThunk(
   'auth/logout',
   async (_, { rejectWithValue }) => {
     try {
-      await authService.logout();
+      await apiService.logout();
       return null;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Erro ao fazer logout');
@@ -111,7 +111,7 @@ export const getProfile = createAsyncThunk(
   'auth/getProfile',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await authService.getProfile();
+      const response = await apiService.getProfile();
       return response;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Erro ao buscar perfil');

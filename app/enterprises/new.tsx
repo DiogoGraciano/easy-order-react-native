@@ -24,11 +24,29 @@ import { Enterprise } from '../../types/models';
 
 // Schema de validação
 const enterpriseSchema = yup.object().shape({
-  legalName: yup.string().required().min(2),
-  tradeName: yup.string().required().min(2),
-  cnpj: yup.string().required(),
-  foundationDate: yup.date().required(),
-  address: yup.string().required().min(10),
+  legalName: yup
+    .string()
+    .required('Razão Social é obrigatória')
+    .min(2, 'Razão Social deve ter no mínimo 2 caracteres')
+    .max(200, 'Razão Social deve ter no máximo 200 caracteres'),
+  tradeName: yup
+    .string()
+    .required('Nome Fantasia é obrigatório')
+    .min(2, 'Nome Fantasia deve ter no mínimo 2 caracteres')
+    .max(100, 'Nome Fantasia deve ter no máximo 100 caracteres'),
+  cnpj: yup
+    .string()
+    .required('CNPJ é obrigatório')
+    .length(14, 'CNPJ deve ter exatamente 14 dígitos'),
+  foundationDate: yup
+    .date()
+    .required('Data de fundação é obrigatória')
+    .max(new Date(), 'Data de fundação não pode ser no futuro'),
+  address: yup
+    .string()
+    .required('Endereço é obrigatório')
+    .min(10, 'Endereço deve ter no mínimo 10 caracteres')
+    .max(300, 'Endereço deve ter no máximo 300 caracteres'),
 });
 
 // Tipo
@@ -316,7 +334,7 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#ff4444',
     fontSize: 12,
-    marginTop: -12,
+    marginTop: 4,
     marginBottom: 8,
     marginLeft: 4,
   },

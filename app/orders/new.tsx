@@ -14,12 +14,45 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useForm, Controller } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { DatePicker } from '../../components/ui/DatePicker';
 import { useApiError } from '../../hooks/useApiError';
 import { apiService } from '../../services/apiService';
 import { Customer, Enterprise, Order, OrderItem, Product, formatPrice, generateOrderNumber } from '../../types/models';
+
+// Schema de validação
+const orderSchema = yup.object().shape({
+  orderDate: yup
+    .date()
+    .required('Data do pedido é obrigatória')
+    .max(new Date(), 'Data do pedido não pode ser no futuro'),
+  customerId: yup
+    .string()
+    .required('Cliente é obrigatório'),
+  enterpriseId: yup
+    .string()
+    .required('Empresa é obrigatória'),
+  status: yup
+    .string()
+    .required('Status é obrigatório')
+    .oneOf(['pending', 'completed', 'cancelled'], 'Status inválido'),
+  notes: yup
+    .string()
+    .max(500, 'Observações devem ter no máximo 500 caracteres'),
+});
+
+// Tipo
+type OrderFormData = {
+  orderDate: Date;
+  customerId: string;
+  enterpriseId: string;
+  status: 'pending' | 'completed' | 'cancelled';
+  notes: string;
+};
 
 export default function NewOrderScreen() {
   const { executeWithErrorHandling } = useApiError();
@@ -33,18 +66,26 @@ export default function NewOrderScreen() {
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
   const [showEnterpriseModal, setShowEnterpriseModal] = useState(false);
-  const [notes, setNotes] = useState('');
 
-  const [formData, setFormData] = useState<Partial<Order>>({
-    orderNumber: generateOrderNumber(),
-    orderDate: new Date().toISOString(),
-    status: 'pending',
-    totalAmount: 0,
-    customerId: '',
-    enterpriseId: '',
-    items: [],
-    notes: '',
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+    watch,
+    setValue,
+  } = useForm<OrderFormData>({
+    resolver: yupResolver(orderSchema) as any,
+    mode: 'onBlur',
+    defaultValues: {
+      orderDate: new Date(),
+      customerId: '',
+      enterpriseId: '',
+      status: 'pending' as 'pending' | 'completed' | 'cancelled',
+      notes: '',
+    },
   });
+
+  const watchedValues = watch();
 
   const loadData = async () => {
     const [customersResult, productsResult, enterprisesResult] = await Promise.all([
@@ -78,19 +119,13 @@ export default function NewOrderScreen() {
 
   const handleSelectCustomer = (customer: Customer) => {
     setSelectedCustomer(customer);
-    setFormData(prev => ({
-      ...prev,
-      customerId: customer.id!,
-    }));
+    setValue('customerId', customer.id!);
     setShowCustomerModal(false);
   };
 
   const handleSelectEnterprise = (enterprise: Enterprise) => {
     setSelectedEnterprise(enterprise);
-    setFormData(prev => ({
-      ...prev,
-      enterpriseId: enterprise.id!,
-    }));
+    setValue('enterpriseId', enterprise.id!);
     setShowEnterpriseModal(false);
   };
 
@@ -138,37 +173,18 @@ export default function NewOrderScreen() {
   };
 
   const handleStatusChange = (status: 'pending' | 'completed' | 'cancelled') => {
-    setFormData(prev => ({
-      ...prev,
-      status,
-    }));
+    setValue('status', status);
   };
 
   const handleDateChange = (date: Date) => {
-    setFormData(prev => ({
-      ...prev,
-      orderDate: date.toISOString(),
-    }));
+    setValue('orderDate', date);
   };
 
-  const validateForm = (): boolean => {
-    if (!selectedCustomer) {
-      Alert.alert('Erro', 'Selecione um cliente');
-      return false;
-    }
-    if (!selectedEnterprise) {
-      Alert.alert('Erro', 'Selecione uma empresa');
-      return false;
-    }
+  const handleSave = async (data: OrderFormData) => {
     if (orderItems.length === 0) {
       Alert.alert('Erro', 'Adicione pelo menos um produto ao pedido');
-      return false;
+      return;
     }
-    return true;
-  };
-
-  const handleSave = async () => {
-    if (!validateForm()) return;
 
     const totalAmount = calculateTotal(orderItems);
     
@@ -181,14 +197,14 @@ export default function NewOrderScreen() {
     }));
     
     const orderData: Order = {
-      orderNumber: formData.orderNumber,
-      orderDate: formData.orderDate,
-      status: formData.status,
+      orderNumber: generateOrderNumber(),
+      orderDate: data.orderDate.toISOString(),
+      status: data.status,
       totalAmount: formatPrice(totalAmount),
-      customerId: formData.customerId,
-      enterpriseId: formData.enterpriseId,
+      customerId: data.customerId,
+      enterpriseId: data.enterpriseId,
       items: cleanItems,
-      notes,
+      notes: data.notes,
     } as Order;
 
     setLoading(true);
@@ -263,7 +279,7 @@ export default function NewOrderScreen() {
           <Text style={styles.headerTitle}>Novo Pedido</Text>
           <TouchableOpacity
             style={[styles.saveButton, loading && styles.saveButtonDisabled]}
-            onPress={handleSave}
+            onPress={handleSubmit(handleSave as any)}
             disabled={loading}
           >
             <Text style={styles.saveButtonText}>
@@ -279,18 +295,27 @@ export default function NewOrderScreen() {
             </CardHeader>
             <CardContent>
               <View style={styles.inputGroup}>
-                <DatePicker
-                  value={formData.orderDate ? new Date(formData.orderDate) : new Date()}
-                  onChange={handleDateChange}
-                  label="Data do Pedido"
-                  placeholder="Selecionar data do pedido"
+                <Controller
+                  control={control}
+                  name="orderDate"
+                  render={({ field: { onChange, value } }) => (
+                    <DatePicker
+                      value={value}
+                      onChange={onChange}
+                      label="Data do Pedido"
+                      placeholder="Selecionar data do pedido"
+                    />
+                  )}
                 />
+                {errors.orderDate && (
+                  <Text style={styles.errorText}>{errors.orderDate.message}</Text>
+                )}
               </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Cliente *</Text>
                 <TouchableOpacity
-                  style={styles.customerButton}
+                  style={[styles.customerButton, errors.customerId && styles.inputError]}
                   onPress={() => setShowCustomerModal(true)}
                 >
                   {selectedCustomer ? (
@@ -303,12 +328,15 @@ export default function NewOrderScreen() {
                   )}
                   <Ionicons name="chevron-down" size={20} color="#666" />
                 </TouchableOpacity>
+                {errors.customerId && (
+                  <Text style={styles.errorText}>{errors.customerId.message}</Text>
+                )}
               </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Empresa *</Text>
                 <TouchableOpacity
-                  style={styles.enterpriseButton}
+                  style={[styles.enterpriseButton, errors.enterpriseId && styles.inputError]}
                   onPress={() => setShowEnterpriseModal(true)}
                 >
                   {selectedEnterprise ? (
@@ -323,43 +351,64 @@ export default function NewOrderScreen() {
                   )}
                   <Ionicons name="chevron-down" size={20} color="#666" />
                 </TouchableOpacity>
+                {errors.enterpriseId && (
+                  <Text style={styles.errorText}>{errors.enterpriseId.message}</Text>
+                )}
               </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Status</Text>
-                <View style={styles.statusContainer}>
-                  {statusOptions.map((status) => (
-                    <TouchableOpacity
-                      key={status}
-                      style={[
-                        styles.statusOption,
-                        formData.status === status && styles.statusOptionSelected,
-                        { backgroundColor: formData.status === status ? getStatusColor(status) : '#f0f0f0' }
-                      ]}
-                      onPress={() => handleStatusChange(status as 'pending' | 'completed' | 'cancelled')}
-                    >
-                      <Text style={[
-                        styles.statusOptionText,
-                        formData.status === status && styles.statusOptionTextSelected
-                      ]}>
-                        {getStatusText(status)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                <Controller
+                  control={control}
+                  name="status"
+                  render={({ field: { onChange, value } }) => (
+                    <View style={styles.statusContainer}>
+                      {statusOptions.map((status) => (
+                        <TouchableOpacity
+                          key={status}
+                          style={[
+                            styles.statusOption,
+                            value === status && styles.statusOptionSelected,
+                            { backgroundColor: value === status ? getStatusColor(status) : '#f0f0f0' }
+                          ]}
+                          onPress={() => onChange(status as 'pending' | 'completed' | 'cancelled')}
+                        >
+                          <Text style={[
+                            styles.statusOptionText,
+                            value === status && styles.statusOptionTextSelected
+                          ]}>
+                            {getStatusText(status)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                />
+                {errors.status && (
+                  <Text style={styles.errorText}>{errors.status.message}</Text>
+                )}
               </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Observações</Text>
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  value={notes}
-                  onChangeText={setNotes}
-                  placeholder="Observações sobre o pedido"
-                  placeholderTextColor="#999"
-                  multiline
-                  numberOfLines={3}
+                <Controller
+                  control={control}
+                  name="notes"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      style={[styles.input, styles.textArea, errors.notes && styles.inputError]}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="Observações sobre o pedido"
+                      placeholderTextColor="#999"
+                      multiline
+                      numberOfLines={3}
+                    />
+                  )}
                 />
+                {errors.notes && (
+                  <Text style={styles.errorText}>{errors.notes.message}</Text>
+                )}
               </View>
             </CardContent>
           </Card>
@@ -876,5 +925,16 @@ const styles = StyleSheet.create({
   },
   statusOptionTextSelected: {
     color: '#fff',
+  },
+  inputError: {
+    borderColor: '#ff4444',
+    borderWidth: 2,
+  },
+  errorText: {
+    color: '#ff4444',
+    fontSize: 12,
+    marginTop: 4,
+    marginBottom: 8,
+    marginLeft: 4,
   },
 });

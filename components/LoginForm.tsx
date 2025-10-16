@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#ff4444',
     fontSize: 12,
-    marginTop: -12,
+    marginTop: 4,
     marginBottom: 8,
     marginLeft: 4,
   },

@@ -23,11 +23,30 @@ import { Customer } from '../../types/models';
 
 // Schema de validação
 const customerSchema = yup.object().shape({
-  name: yup.string().required().min(2),
-  email: yup.string().required().email(),
-  phone: yup.string().required().min(10),
-  cpf: yup.string().required(),
-  address: yup.string().required().min(10),
+  name: yup
+    .string()
+    .required('Nome é obrigatório')
+    .min(2, 'Nome deve ter no mínimo 2 caracteres')
+    .max(100, 'Nome deve ter no máximo 100 caracteres'),
+  email: yup
+    .string()
+    .required('E-mail é obrigatório')
+    .email('E-mail inválido')
+    .max(100, 'E-mail deve ter no máximo 100 caracteres'),
+  phone: yup
+    .string()
+    .required('Telefone é obrigatório')
+    .min(10, 'Telefone deve ter pelo menos 10 dígitos')
+    .max(11, 'Telefone deve ter no máximo 11 dígitos'),
+  cpf: yup
+    .string()
+    .required('CPF é obrigatório')
+    .length(11, 'CPF deve ter exatamente 11 dígitos'),
+  address: yup
+    .string()
+    .required('Endereço é obrigatório')
+    .min(10, 'Endereço deve ter no mínimo 10 caracteres')
+    .max(200, 'Endereço deve ter no máximo 200 caracteres'),
 });
 
 // Tipo
@@ -392,7 +411,7 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#ff4444',
     fontSize: 12,
-    marginTop: -12,
+    marginTop: 4,
     marginBottom: 8,
     marginLeft: 4,
   },
