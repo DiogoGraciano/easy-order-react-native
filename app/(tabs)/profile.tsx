@@ -57,26 +57,6 @@ export default function ProfileScreen() {
               <Text style={styles.value}>{user?.email || 'N/A'}</Text>
             </View>
             
-            {user?.phone && (
-              <View style={styles.infoRow}>
-                <Text style={styles.label}>Telefone:</Text>
-                <Text style={styles.value}>{user.phone}</Text>
-              </View>
-            )}
-            
-            {user?.cpf && (
-              <View style={styles.infoRow}>
-                <Text style={styles.label}>CPF:</Text>
-                <Text style={styles.value}>{user.cpf}</Text>
-              </View>
-            )}
-            
-            {user?.address && (
-              <View style={styles.infoRow}>
-                <Text style={styles.label}>Endereço:</Text>
-                <Text style={styles.value}>{user.address}</Text>
-              </View>
-            )}
             
             <View style={styles.infoRow}>
               <Text style={styles.label}>Função:</Text>

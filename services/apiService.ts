@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Customer, Enterprise, Order, Product } from '../types/models';
 
-const API_BASE_URL = 'http://10.26.91.135:3000';
+const API_BASE_URL = 'http://localhost:3000';
 
 interface ApiError {
   statusCode: number;

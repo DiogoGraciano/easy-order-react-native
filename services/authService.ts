@@ -1,15 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_BASE_URL = 'http://192.168.0.102:3000';
+const API_BASE_URL = 'http://localhost:3000';
 
 export interface User {
   id: string;
   name: string;
   email: string;
-  phone?: string;
-  photo?: string;
-  cpf?: string;
-  address?: string;
   role: string;
   isActive: boolean;
   createdAt: string;
