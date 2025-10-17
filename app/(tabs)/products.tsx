@@ -64,6 +64,8 @@ export default function ProductsScreen() {
             );
 
             if (success) {
+              // Recarrega a lista após exclusão bem-sucedida
+              await loadProducts();
               Alert.alert('Sucesso', 'Produto excluído com sucesso!');
             }
           },

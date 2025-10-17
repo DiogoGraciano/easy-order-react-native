@@ -63,6 +63,8 @@ export const useOrders = () => {
     if (result !== null) {
       // Remove o pedido da lista local imediatamente
       setOrders(prev => prev.filter(o => o.id !== order.id));
+      // Recarrega a lista para garantir consistência com o servidor
+      await loadOrders();
       return true;
     }
     

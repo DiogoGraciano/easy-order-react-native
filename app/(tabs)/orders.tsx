@@ -74,6 +74,8 @@ export default function OrdersScreen() {
           onPress: async () => {
             const success = await deleteOrder(order);
             if (success) {
+              // Recarrega a lista após exclusão bem-sucedida
+              await loadOrders();
               Alert.alert('Sucesso', 'Pedido excluído com sucesso!');
             }
           },

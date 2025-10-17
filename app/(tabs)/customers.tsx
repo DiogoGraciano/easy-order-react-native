@@ -65,6 +65,7 @@ export default function CustomersScreen() {
             );
 
             if (success) {
+              await loadCustomers();
               Alert.alert('Sucesso', 'Cliente excluído com sucesso!');
             }
           },

@@ -64,6 +64,8 @@ export default function EnterprisesScreen() {
             );
 
             if (success) {
+              // Recarrega a lista após exclusão bem-sucedida
+              await loadEnterprises();
               Alert.alert('Sucesso', 'Empresa excluída com sucesso!');
             }
           },
